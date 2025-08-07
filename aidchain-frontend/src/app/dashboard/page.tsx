@@ -1,5 +1,5 @@
-import DonorDashboard from '@/pages/dashboard/DonorDashboard';
+import NewDashboard from '@/pages/dashboard/NewDashboard';
 
 export default function DashboardPage() {
-  return <DonorDashboard />;
+  return <NewDashboard />;
 }

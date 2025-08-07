@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import SideMenu from '@/components/SideMenu';
 
-export default function DonorDashboard() {
+export default function NewDashboard() {
   const [activeTab, setActiveTab] = useState<string>('donor');
   
   const handleTabChange = (tabId: string): void => {
