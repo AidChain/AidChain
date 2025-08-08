@@ -1,5 +1,6 @@
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { SuiClient, getFullnodeUrl, SuiObjectResponse } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
+import axios from 'axios';
 
 const client = new SuiClient({
   url: process.env.NEXT_PUBLIC_SUI_RPC_URL || getFullnodeUrl('testnet'),
@@ -8,6 +9,7 @@ const client = new SuiClient({
 export const PACKAGE_ID = process.env.NEXT_PUBLIC_DONATION_POOL_PACKAGE_ID!;
 export const DONATION_POOL_ID = process.env.NEXT_PUBLIC_DONATION_POOL_OBJECT_ID!;
 export const ADMIN_CAP_ID = process.env.NEXT_PUBLIC_ADMIN_CAP_OBJECT!;
+export const WALRUS_AGGREGATOR_URL = process.env.WALRUS_AGGREGATOR_URL!;
 
 export async function createDonationTransaction(
   donorAddress: string,
@@ -91,5 +93,39 @@ export async function createDonationToCardTransaction(
   return tx;
 }
 
+/**
+ * Fetches the blob ID from a Sui Move object stored on-chain.
+ * @param objectId - The SUI object ID to query
+ * @returns The blob ID string, or null if not found
+ */
+export async function getBlobIdFromContract(objectId: string): Promise<string | null> {
+  const resp: SuiObjectResponse = await client.getObject({ id: objectId, options: { showContent: true } });
+
+  const content = resp.data?.content;
+  // Ensure object contains a Move struct
+  if (!content || content.dataType !== 'moveObject') {
+    return null;
+  }
+
+  // Safely extract blob_id if it exists
+  const blobId = (content.fields as any)?.blob_id as string | undefined;
+  return blobId ?? null;
+}
+
+/**
+ * Retrieves the public URL for a blob stored in Walrus via your aggregator API.
+ * @param blobId - The identifier of the blob
+ * @returns The URL if accessible, or null if not found
+ */
+export async function fetchBlobFromWalrus(blobId: string): Promise<string | null> {
+  const url = `${WALRUS_AGGREGATOR_URL}/v1/blobs/${encodeURIComponent(blobId)}`;
+
+  try {
+    await axios.head(url);
+    return url;
+  } catch {
+    return null;
+  }
+}
 
 export { client as suiClient };
