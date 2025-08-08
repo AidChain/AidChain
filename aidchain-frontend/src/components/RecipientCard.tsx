@@ -15,7 +15,8 @@ export default function RecipientCard({
     <>
       <div className="w-full mx-auto">
         {/* Frosted Glass Card */}
-        <div className="relative bg-white/10 backdrop-blur-lg border border-blue-400/40 rounded-2xl px-6 py-4 shadow-2xl">
+        <div className="cursor-pointer relative bg-white/10 backdrop-blur-lg border border-blue-400/40 rounded-2xl px-6 py-4 hover:shadow-md
+        hover:shadow-blue-700/50 transition-all duration-300 ease-in-out">
           {/* Gradient overlay for extra glass effect */}
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-transparent rounded-2xl pointer-events-none" />
           

@@ -224,7 +224,8 @@ export default function UserProfileCard({ onShowSnackbar }: UserProfileCardProps
     <>
       <div className="w-full mx-auto">
         {/* Frosted Glass Card */}
-        <div className="relative bg-white/10 backdrop-blur-lg rounded-2xl px-6 py-6 shadow-2xl">
+        <div className="relative bg-white/10 backdrop-blur-lg rounded-2xl px-6 py-6 hover:shadow-xl
+        hover:shadow-blue-700/50 transition-all duration-300 ease-in-out">
           {/* Gradient overlay for extra glass effect */}
           <div className="absolute inset-0 bg-gradient-to-r from-blue-700/80 to-teal-300/80 rounded-2xl pointer-events-none" />
           
