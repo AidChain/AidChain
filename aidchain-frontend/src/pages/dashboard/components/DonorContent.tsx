@@ -43,22 +43,12 @@ export default function DonorContent() {
         recipient: "Test Recipient Name",
         image: "https://picsum.photos/200"
       },
-      {
-        id: "rec5",
-        recipient: "Test Recipient Name",
-        image: "https://picsum.photos/200"
-      },
-      {
-        id: "rec6",
-        recipient: "Test Recipient Name",
-        image: "https://picsum.photos/200"
-      }
     ]
 
   return (
     <>
-      <div className="flex flex-col pt-8 mb-8 pr-8 h-full w-full gap-8">
-        <div className="flex flex-col gap-2">
+      <div className="flex flex-col pt-8 pb-8 pr-8 h-full w-full gap-8">
+        <div className="flex flex-col gap-2 flex-shrink-0"> {/* Added flex-shrink-0 to prevent header from shrinking */}
           <h2 className="text-white text-3xl sm:text-4xl font-semibold">Welcome back, 
           <span className="text-transparent bg-gradient-to-r from-teal-200 to-blue-500 bg-clip-text"> {username}</span>
           .</h2>
@@ -66,13 +56,15 @@ export default function DonorContent() {
             Your transparent donation platform dashboard.
           </p>
         </div>
-        <div className="flex flex-row gap-8 h-full w-full">
+        <div className="flex flex-row gap-8 flex-1 min-h-0"> {/* Changed h-full to flex-1 and added min-h-0 */}
           <div className="flex flex-2 flex-col h-full gap-6">
-            <UserProfileCard onShowSnackbar={showSnackbar} />
-            <div className="flex flex-col gap-3 flex-1 min-h-0">
-              <h3 className="text-white text-xl sm:text-2xl font-medium">Quick Donate</h3>
+            <div className="flex-shrink-0"> {/* Wrap UserProfileCard to prevent it from shrinking */}
+              <UserProfileCard onShowSnackbar={showSnackbar} />
+            </div>
+            <div className="flex flex-col gap-3 flex-1 min-h-0"> {/* Added min-h-0 */}
+              <h3 className="text-white text-xl sm:text-2xl font-medium flex-shrink-0">Quick Donate</h3> {/* Added flex-shrink-0 */}
               <div className="flex-1 overflow-hidden">
-                <ul className="h-full overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
+                <ul className="h-full w-full overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30 pb-2">
                   {
                     recipients.map((item, index) => (
                       <li key={item.id}>
@@ -88,7 +80,7 @@ export default function DonorContent() {
               </div>
             </div>
           </div>
-          <div className="flex flex-3 flex-col bg-blue-400 h-inherit"></div>
+          <div className="flex flex-3 flex-col bg-blue-400 h-full"></div> {/* Changed h-inherit to h-full */}
         </div>
 
         {/* Snackbar Container - Fixed Bottom Right */}
