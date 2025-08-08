@@ -13,7 +13,7 @@ export default function NewDashboard() {
   };
 
   return (
-    <div className="h-screen w-screen flex gap-8 bg-gradient-to-t from-black to-blue-950 text-white relative overflow-hidden">
+    <div className="h-auto lg:h-screen w-screen flex gap-8 bg-gradient-to-t from-black to-blue-950 text-white relative overflow-hidden">
       <SideMenu 
         activeTab={activeTab} 
         onTabChange={handleTabChange} 

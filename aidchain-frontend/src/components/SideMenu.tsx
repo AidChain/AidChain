@@ -46,7 +46,7 @@ export default function SideMenu({
   return (
     <>
       {/* Desktop Side Menu */}
-      <div className="hidden md:flex w-64 bg-black/10 backdrop-blur-md border-white/20 h-full flex-col shadow-xl border-r">
+      <div className="hidden md:flex fixed w-64 bg-black/10 backdrop-blur-md border-white/20 h-screen lg:h-full flex-col shadow-xl border-r">
         {/* Logo */}
         <div className="p-6 mb-6 border-b border-gray-800">
           <div className="flex items-center space-x-4">

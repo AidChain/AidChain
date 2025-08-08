@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import UserProfileCard from "@/components/UserProfileCard";
 import Snackbar from "@/components/Snackbar";
 import RecipientCard from '@/components/RecipientCard';
+import Modal from '@/components/Modal';
 import * as Chart from 'chart.js';
 import { ChevronDown } from 'lucide-react';
 import GradientBorderButton from '@/components/GradientBorderButton';
@@ -25,6 +26,7 @@ export default function DonorContent() {
   
   const [selectedRecipient, setSelectedRecipient] = useState('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
 
   const [snackbars, setSnackbars] = useState<Array<{
       id: number;
@@ -97,6 +99,37 @@ export default function DonorContent() {
       color: 'rgba(59, 130, 246, 1)'
     }
   };
+
+  const transactionData = [
+    {
+      recipient: "Seeds of Hope Foundation",
+      amount: 500
+    },
+    {
+      recipient: "Seeds of Hope Foundation",
+      amount: 300
+    },
+    {
+      recipient: "Bayanihan Women’s Shelter",
+      amount: 350
+    },
+    {
+      recipient: "Northern Highlands Indigenous Support Trust",
+      amount: 50
+    },
+    {
+      recipient: "Bayanihan Women’s Shelter",
+      amount: 400
+    },
+    {
+      recipient: "Amaan Refugee Network",
+      amount: 100
+    },
+    {
+      recipient: "Northern Highlands Indigenous Support Trust",
+      amount: 200
+    },
+  ];
 
   const filterOptions = [
     { value: 'all', label: 'All Recipients' },
@@ -195,19 +228,22 @@ export default function DonorContent() {
 
   return (
     <>
-      <div className="flex flex-col pt-8 pb-8 pr-8 h-full w-full gap-6">
+      <div className="flex flex-col pl-8 md:pl-0 pt-8 pb-8 pr-8 h-full w-full gap-8 md:ml-72 md:overflow-x-scroll mb-24 md:mb-0">
         <div className="flex flex-col gap-2 flex-shrink-0"> {/* Added flex-shrink-0 to prevent header from shrinking */}
           <h2 className="text-white text-3xl sm:text-4xl font-semibold">Welcome back, 
           <span className="text-transparent bg-gradient-to-r from-teal-200 to-blue-500 bg-clip-text"> {username}</span>
           .</h2>
         </div>
-        <div className="flex flex-row gap-4 flex-1 min-h-0"> {/* Changed h-full to flex-1 and added min-h-0 */}
+        <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0"> {/* Changed h-full to flex-1 and added min-h-0 */}
           <div className="flex flex-2 flex-col h-full gap-6">
             <div className="flex-shrink-0"> {/* Wrap UserProfileCard to prevent it from shrinking */}
               <UserProfileCard onShowSnackbar={showSnackbar} />
             </div>
             <div className="flex flex-col gap-3 flex-1 min-h-0"> {/* Added min-h-0 */}
-              <h3 className="text-white text-xl sm:text-2xl font-medium flex-shrink-0">Quick Donate</h3> {/* Added flex-shrink-0 */}
+              <div className='flex justify-between items-center'>
+                <h3 className="text-white text-xl sm:text-2xl font-medium flex-shrink-0">Quick Donate</h3>
+                <p className='text-sm text-slate-400'>VIEW ALL</p>
+              </div>
               <div className="flex-1 overflow-hidden">
                 <ul className="h-full w-full overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30 pb-2">
                   {
@@ -225,8 +261,8 @@ export default function DonorContent() {
               </div>
             </div>
           </div>
-          <div className="flex flex-3 flex-col h-full">
-            <div className="flex-1 bg-gray-800/50 backdrop-blur-lg border border-blue-400/40 rounded-xl p-6 flex flex-col hover:shadow-xl
+          <div className="flex flex-3 flex-col">
+            <div className="flex min-h-full w-full bg-gray-800/50 backdrop-blur-lg border border-blue-400/40 rounded-xl p-6 flex flex-col hover:shadow-xl
         hover:shadow-blue-500/50 transition-all duration-300 ease-in-out">
                 {/* Chart Header */}
                 <div className="flex justify-between items-center mb-6">
@@ -264,8 +300,8 @@ export default function DonorContent() {
                 </div>
                 
                 {/* Chart Container */}
-                <div className="flex-1 min-h-0 relative">
-                  <canvas ref={chartRef} className="w-full"></canvas>
+                <div className="relative h-full">
+                  <canvas ref={chartRef} className="h-full w-full"></canvas>
                 </div>
                 
                 {/* Stats Summary */}
@@ -292,7 +328,7 @@ export default function DonorContent() {
                   </div>
                 </div>
                 <GradientBorderButton
-                  onClick={() => {}}
+                  onClick={() => {setShowTransactionModal(true)}}
                   size="sm"
                 >
                   View Transaction History
@@ -321,6 +357,26 @@ export default function DonorContent() {
           ))}
         </div>
       </div>
+      <Modal
+        header="Transaction History"
+        isOpen = {showTransactionModal}
+        onClose = {() => {setShowTransactionModal(false)}}
+      >
+        <ul className='w-[40vw] h-[40vh] flex flex-col overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30'>
+          {
+        transactionData.map((item, index) => 
+            <li key={index} className="relative z-10">
+              <div className="flex items-center justify-between w-full bg-white/10 border border-slate-300/10 rounded-lg px-3 py-4">
+                <p className="text-white/90 text-lg">
+                    {item.recipient}
+                </p>
+                <p className="text-red-300 text-md">{`- $${item.amount}`}</p>
+              </div>
+            </li>
+            )
+          }
+        </ul>
+      </Modal>
     </>
   );
 };
