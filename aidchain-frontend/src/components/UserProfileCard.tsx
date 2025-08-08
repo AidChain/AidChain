@@ -24,12 +24,15 @@ interface SuiCoinBalance {
   };
 }
 
-export default function UserProfileCard() {
+interface UserProfileCardProps {
+  onShowSnackbar?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+}
+
+export default function UserProfileCard({ onShowSnackbar }: UserProfileCardProps) {
   const { userAddress, isAuthenticated } = useZkLogin();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Fetch user assets from Sui testnet
   useEffect(() => {
@@ -200,10 +203,16 @@ export default function UserProfileCard() {
     
     try {
       await navigator.clipboard.writeText(userAddress);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Show success snackbar
+      if (onShowSnackbar) {
+        onShowSnackbar("Address copied to clipboard", "success");
+      }
     } catch (error) {
       console.error('Failed to copy:', error);
+      // Show error snackbar
+      if (onShowSnackbar) {
+        onShowSnackbar("Failed to copy address", "error");
+      }
     }
   };
 
@@ -213,18 +222,18 @@ export default function UserProfileCard() {
 
   return (
     <>
-      <div className="w-full max-w-2xl mx-auto">
+      <div className="w-full mx-auto">
         {/* Frosted Glass Card */}
-        <div className="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 shadow-2xl">
+        <div className="relative bg-white/10 backdrop-blur-lg border border-teal-200/20 rounded-2xl px-8 py-6 shadow-2xl">
           {/* Gradient overlay for extra glass effect */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-2xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/15 to-transparent rounded-2xl pointer-events-none" />
           
           <div className="relative z-10">
             {/* Profile Section */}
-            <div className="flex items-start space-x-6 mb-8">
+            <div className="flex items-center justify-between w-full mb-8">
               {/* Profile Picture */}
-              <div className="flex-shrink-0">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/30">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/30">
                   <Image
                     src="https://picsum.photos/200"
                     alt="Profile Picture"
@@ -233,19 +242,19 @@ export default function UserProfileCard() {
                     className="w-full h-full object-cover"
                   />
                 </div>
+                <span className="text-white/90 text-lg font-mono bg-black/20 px-3 py-1 rounded-lg">
+                    {formatAddress(userAddress)}
+                </span>
               </div>
 
               {/* Address and Actions */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-3 mb-2">
-                  <span className="text-white/90 text-lg font-mono bg-black/20 px-3 py-1 rounded-lg">
-                    {formatAddress(userAddress)}
-                  </span>
+              <div className="flex min-w-0">
+                <div className="flex items-center gap-2">
                   
                   {/* Copy Button */}
                   <button
                     onClick={copyToClipboard}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors duration-200 group"
+                    className="cursor-pointer py-3 px-4 hover:bg-white/10 rounded-full transition-colors duration-200 group"
                     title="Copy full address"
                   >
                     <CopyOutlined 
@@ -257,7 +266,7 @@ export default function UserProfileCard() {
                   {/* QR Code Button */}
                   <button
                     onClick={() => setShowQRModal(true)}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors duration-200 group"
+                    className="cursor-pointer py-3 px-4 hover:bg-white/10 rounded-full transition-colors duration-200 group"
                     title="Show QR Code"
                   >
                     <QrcodeOutlined 
@@ -266,19 +275,12 @@ export default function UserProfileCard() {
                     />
                   </button>
                 </div>
-
-                {/* Copy Feedback */}
-                {copied && (
-                  <div className="text-green-400 text-sm">
-                    ✓ Address copied to clipboard
-                  </div>
-                )}
               </div>
             </div>
 
             {/* Assets Section */}
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-white mb-4">Your Assets</h3>
+              <h3 className="text-sm font-regular text-slate-300 mb-2">YOUR ASSETS</h3>
               
               {isLoading ? (
                 <div className="space-y-3">
