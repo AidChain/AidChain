@@ -53,7 +53,7 @@ export default function RecipientCard({
           isOpen = {showRecipientModal}
           onClose={() => setShowRecipientModal(false)}
         >
-          <div className='w-[40vw]'>
+          <div className='w-[80vw] md:w-[40vw]'>
             <p className='text-left text-slate-300 mb-8'>{description}</p>
             <div className='flex justify-end'>
               <GradientBorderButton

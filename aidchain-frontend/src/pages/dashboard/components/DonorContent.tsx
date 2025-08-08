@@ -362,15 +362,15 @@ export default function DonorContent() {
         isOpen = {showTransactionModal}
         onClose = {() => {setShowTransactionModal(false)}}
       >
-        <ul className='w-[40vw] h-[40vh] flex flex-col overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30'>
+        <ul className='w-[80vw] md:w-[40vw] flex flex-col overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30'>
           {
         transactionData.map((item, index) => 
             <li key={index} className="relative z-10">
               <div className="flex items-center justify-between w-full bg-white/10 border border-slate-300/10 rounded-lg px-3 py-4">
-                <p className="text-white/90 text-lg">
+                <p className="text-white/90 text-md md:text-lg">
                     {item.recipient}
                 </p>
-                <p className="text-red-300 text-md">{`- $${item.amount}`}</p>
+                <p className="text-red-300 text-sm md:text-md">{`- $${item.amount}`}</p>
               </div>
             </li>
             )
