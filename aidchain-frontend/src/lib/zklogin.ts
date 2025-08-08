@@ -231,6 +231,20 @@ export class ZkLoginService {
     return !!this.state;
   }
 
+  /**
+   * Get the current keypair (needed for signing operations)
+   */
+  getKeypair() {
+    return this.state?.ephemeralKeyPair;
+  }
+
+  /**
+   * Check if user has a valid session with keypair
+   */
+  hasValidSession(): boolean {
+    return this.state?.ephemeralKeyPair !== null && this.state?.zkLoginUserAddress !== null;
+  }
+
   // Get current state for debugging
   getState(): ZkLoginState | null {
     return this.state;
@@ -244,5 +258,35 @@ export class ZkLoginService {
   // Get randomness for Enoki API
   getRandomness(): string | null {
     return this.state?.randomness || null;
+  }
+
+  /**
+   * Restore zkLogin state from stored session data
+   */
+  async restoreState(jwt: string, loginState: any): Promise<ZkLoginState> {
+    try {
+      // Restore ephemeral keypair
+      const ephemeralKeyPair = this.deserializeKeyPair(loginState.ephemeralKeyPair);
+
+      // Get address and salt from Enoki API (or use stored values)
+      const zkLoginResponse = await this.enokiService.getZkLoginAddress(jwt);
+      const { salt, address: zkLoginUserAddress } = zkLoginResponse.data;
+
+      const state: ZkLoginState = {
+        ephemeralKeyPair,
+        randomness: loginState.randomness,
+        maxEpoch: loginState.maxEpoch,
+        userSalt: salt,
+        jwt,
+        zkLoginUserAddress
+      };
+
+      this.state = state;
+      console.log('✅ zkLogin state restored successfully');
+      return state;
+    } catch (error) {
+      console.error('Failed to restore zkLogin state:', error);
+      throw error;
+    }
   }
 }

@@ -14,6 +14,7 @@ interface ZkLoginContextType {
   completeLogin: (jwt: string) => Promise<any>;
   isLoading: boolean;
   isFaucetLoading: boolean;
+  signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }>;
 }
 
 const ZkLoginContext = createContext<ZkLoginContextType | null>(null);
@@ -30,15 +31,33 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
     const checkExistingSession = () => {
       const storedAddress = sessionStorage.getItem('zkLoginAddress');
       const storedState = sessionStorage.getItem('zkLoginComplete');
+      const storedZkLoginState = sessionStorage.getItem('zkLoginState');
       
-      if (storedAddress && storedState) {
-        setIsAuthenticated(true);
-        setUserAddress(storedAddress);
+      if (storedAddress && storedState && storedZkLoginState) {
+        try {
+          // Restore the full zkLogin state
+          const loginState = JSON.parse(storedZkLoginState);
+          const storedJWT = sessionStorage.getItem('zkLoginJWT');
+          
+          if (storedJWT && loginState) {
+            // Restore the state in zkLoginService
+            zkLoginService.restoreState(storedJWT, loginState);
+            
+            setIsAuthenticated(true);
+            setUserAddress(storedAddress);
+            
+            console.log('✅ Restored zkLogin session with keypair');
+          }
+        } catch (error) {
+          console.error('Failed to restore zkLogin session:', error);
+          // Clear invalid session data
+          logout();
+        }
       }
     };
 
     checkExistingSession();
-  }, []);
+  }, [zkLoginService]);
 
   const login = useCallback(async () => {
     try {
@@ -62,7 +81,7 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
     setIsAuthenticated(false);
     setUserAddress(null);
     sessionStorage.removeItem('zkLoginState');
-    sessionStorage.removeItem('zkLoginJWT');
+    sessionStorage.removeItem('zkLoginJWT'); // ✅ Clear JWT
     sessionStorage.removeItem('zkLoginAddress');
     sessionStorage.removeItem('zkLoginComplete');
     sessionStorage.removeItem('faucetRequested');
@@ -77,9 +96,10 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
       setIsAuthenticated(true);
       setUserAddress(zkState.zkLoginUserAddress);
       
-      // Store session
+      // Store session - including JWT for restoration
       sessionStorage.setItem('zkLoginAddress', zkState.zkLoginUserAddress);
       sessionStorage.setItem('zkLoginComplete', 'true');
+      sessionStorage.setItem('zkLoginJWT', jwt); // ✅ Store JWT for restoration
 
       // Request testnet SUI for new users (run in background)
       requestFaucetSui(zkState.zkLoginUserAddress);
@@ -124,6 +144,31 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
     }
   }, []);
 
+  const signPersonalMessage = async (message: Uint8Array) => {
+    if (!zkLoginService.hasValidSession()) {
+      throw new Error('No valid session - please login first');
+    }
+
+    const keypair = zkLoginService.getKeypair();
+    if (!keypair) {
+      throw new Error('No keypair available');
+    }
+    
+    try {
+      // Sign the message using the ephemeral keypair
+      const signatureResult = await keypair.signPersonalMessage(message);
+      console.log('✅ Signed personal message:', signatureResult);
+      
+      // Return just the signature bytes that Seal expects
+      return { 
+        signature: signatureResult.signature // This should be the raw signature string
+      };
+    } catch (error) {
+      console.error('Failed to sign personal message:', error);
+      throw new Error('Failed to sign message');
+    }
+  };
+
   const value: ZkLoginContextType = {
     zkLoginService,
     isAuthenticated,
@@ -133,6 +178,7 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
     completeLogin,
     isLoading,
     isFaucetLoading,
+    signPersonalMessage,
   };
 
   return (

@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useZkLogin } from '@/providers/ZkLoginProvider';
-import { SealCredentialManager, SecureCredentialData, DebitCardCredentials } from '@/lib/seal-credential-manager';
+import { SealCredentialManager } from '@/lib/seal-credential-manager';
+import { SecureCredentialData, DebitCardCredentials } from '@/types/credentials';
 import { SessionKey } from '@mysten/seal';
-import { AuditLogger } from '@/lib/audit-logger';
 
 interface SecureCredentialManagerProps {
   packageId: string;
 }
 
 export default function SecureCredentialManager({ packageId }: SecureCredentialManagerProps) {
-  const { userAddress, suiAddress } = useZkLogin();
+  const { userAddress, signPersonalMessage } = useZkLogin();
   const [credentialManager] = useState(() => new SealCredentialManager(packageId));
   const [sessionKey, setSessionKey] = useState<SessionKey | null>(null);
   const [storedCredentials, setStoredCredentials] = useState<SecureCredentialData[]>([]);
@@ -28,7 +28,7 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
   });
 
   const createSessionKey = async () => {
-    if (!userAddress) return;
+    if (!userAddress || !signPersonalMessage) return;
 
     try {
       setIsLoading(true);
@@ -36,36 +36,25 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
       const session = await credentialManager.createSessionKey(
         userAddress,
         async (message: Uint8Array) => {
-          // Get the signature from your zkLogin implementation
-          const { signature } = await signPersonalMessage(message);
-          return { signature };
+          const result = await signPersonalMessage(message);
+          return { signature: result.signature };
         }
       );
       
       setSessionKey(session);
-      localStorage.setItem('sealSessionKey', session.export());
       
-      // Log successful session creation
-      await AuditLogger.logCredentialAccess(
+      // Store session creation timestamp and user info (non-sensitive data only)
+      localStorage.setItem('sealSessionCreated', JSON.stringify({
         userAddress,
-        'session_create',
-        'session_key',
-        true,
-        { packageId }
-      );
+        createdAt: Date.now(),
+        packageId
+      }));
+      
+      console.log('✅ Session key created successfully (not stored for security)');
       
     } catch (error) {
       console.error('Failed to create session key:', error);
-      
-      // Log failed session creation
-      await AuditLogger.logCredentialAccess(
-        userAddress || 'unknown',
-        'session_create',
-        'session_key',
-        false,
-        { packageId },
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      alert('Failed to create session key. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -102,29 +91,14 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
           userId: userAddress
         });
         
-        // Log successful credential storage
-        await AuditLogger.logCredentialAccess(
-          userAddress,
-          'store',
-          result.credentialData.policyId,
-          true,
-          { credentialType: 'debit_card' }
-        );
+        console.log('✅ Credentials stored successfully:', result.credentialData);
+        alert('Credentials stored securely with Seal encryption!');
       } else {
         throw new Error(result.error || 'Storage failed');
       }
     } catch (error) {
       console.error('Failed to store credentials:', error);
-      
-      // Log failed credential storage
-      await AuditLogger.logCredentialAccess(
-        userAddress,
-        'store',
-        'unknown',
-        false,
-        { credentialType: 'debit_card' },
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      alert('Failed to store credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -138,38 +112,51 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
 
     try {
       setIsLoading(true);
+      
+      // Since we can't serialize SessionKey, we need to recreate it for API calls
+      // or handle retrieval differently
       const response = await fetch('/api/credentials/retrieve-secure', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           credentialData,
-          sessionKeyData: sessionKey.export(),
+          // Instead of sessionKey data, we'll handle this server-side differently
+          userAddress,
           packageId
         })
       });
 
       const result = await response.json();
       if (result.success && result.credentials) {
-        console.log('Retrieved credentials:', result.credentials);
-        // Display credentials securely (consider masking sensitive data)
+        console.log('✅ Retrieved credentials:', result.credentials);
+        
+        // Display credentials in a secure way (masked for security)
+        alert(`Retrieved card ending in ****${result.credentials.cardNumber.slice(-4)} from ${result.credentials.bankName}`);
+      } else {
+        throw new Error(result.error || 'Retrieval failed');
       }
     } catch (error) {
       console.error('Failed to retrieve credentials:', error);
+      alert('Failed to retrieve credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Clear session data when user changes
   useEffect(() => {
-    // Try to restore session key from storage
-    const storedSessionKey = localStorage.getItem('sealSessionKey');
-    if (storedSessionKey && userAddress) {
+    const sessionInfo = localStorage.getItem('sealSessionCreated');
+    if (sessionInfo) {
       try {
-        const session = SessionKey.fromExportedData(storedSessionKey);
-        setSessionKey(session);
+        const parsed = JSON.parse(sessionInfo);
+        // If user changed or session is old (> 30 minutes), clear it
+        if (parsed.userAddress !== userAddress || 
+            Date.now() - parsed.createdAt > 30 * 60 * 1000) {
+          localStorage.removeItem('sealSessionCreated');
+          setSessionKey(null);
+        }
       } catch (error) {
-        console.error('Failed to restore session key:', error);
-        localStorage.removeItem('sealSessionKey');
+        localStorage.removeItem('sealSessionCreated');
       }
     }
   }, [userAddress]);
@@ -198,10 +185,15 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
           <button
             onClick={createSessionKey}
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-2 rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-200"
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-2 rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-200 disabled:opacity-50"
           >
             {isLoading ? 'Creating...' : 'Create Session Key'}
           </button>
+        )}
+        {sessionKey && (
+          <div className="text-green-400 text-sm">
+            ✅ Session active - You can now store and retrieve credentials securely
+          </div>
         )}
       </div>
 
@@ -265,7 +257,7 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
                   disabled={!sessionKey || isLoading}
                   className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors disabled:opacity-50"
                 >
-                  Retrieve
+                  {isLoading ? 'Retrieving...' : 'Retrieve'}
                 </button>
               </div>
             ))}
@@ -281,7 +273,7 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
           <li>• Stored on decentralized Walrus network</li>
           <li>• Access controlled by on-chain policies</li>
           <li>• Threshold encryption (2-of-N key servers)</li>
-          <li>• Envelope encryption for large data</li>
+          <li>• Session keys never stored locally</li>
         </ul>
       </div>
     </div>

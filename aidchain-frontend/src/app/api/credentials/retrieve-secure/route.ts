@@ -19,8 +19,9 @@ export async function POST(request: NextRequest) {
 
     const credentialManager = new SealCredentialManager(packageId);
     
-    // Reconstruct session key from stored data
-    const sessionKey = SessionKey.fromExportedData(sessionKeyData);
+    // Fix: Parse the session key data correctly
+    const parsedSessionData = JSON.parse(sessionKeyData);
+    const sessionKey = new SessionKey(parsedSessionData);
     
     // Convert base64 back to Uint8Array
     const credentialDataWithTypedArray = {

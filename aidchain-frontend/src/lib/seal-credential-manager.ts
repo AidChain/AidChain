@@ -1,30 +1,9 @@
 import { SealClient, SessionKey, getAllowlistedKeyServers } from '@mysten/seal';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { fromHEX, toHEX } from '@mysten/sui/utils';
+import { fromHex, toHex } from '@mysten/sui/utils';
 import { walrusClient } from './walrus-client';
-
-export interface SecureCredentialData {
-  userId: string;
-  credentialType: 'debit_card' | 'identity' | 'bank_account';
-  walrusQuiltId: string; // Walrus storage reference
-  sealEncryptedKey: Uint8Array; // Seal-encrypted symmetric key
-  accessLevel: 'user' | 'admin' | 'organization';
-  createdAt: number;
-  expiresAt?: number;
-  packageId: string; // Move package controlling access
-  policyId: string; // Unique policy identifier
-}
-
-export interface DebitCardCredentials {
-  cardNumber: string;
-  expiryDate: string;
-  cvv: string;
-  bankName: string;
-  weeklyLimit: number;
-  isActive: boolean;
-  userId: string;
-}
+import { SecureCredentialData, DebitCardCredentials } from '@/types/credentials';
 
 export class SealCredentialManager {
   private suiClient: SuiClient;
@@ -71,8 +50,8 @@ export class SealCredentialManager {
       
       const { encryptedObject: sealEncryptedKey, key: symmetricKey } = await this.sealClient.encrypt({
         threshold: SealCredentialManager.KEY_SERVER_THRESHOLD,
-        packageId: fromHEX(this.packageId),
-        id: fromHEX(policyId),
+        packageId: this.packageId,
+        id: policyId,
         data: dataToEncrypt,
       });
 
@@ -83,9 +62,15 @@ export class SealCredentialManager {
       );
 
       // Step 4: Store the envelope-encrypted credentials on Walrus
+      const credentialFile = new File(
+        [envelopeEncryptedCredentials], 
+        `sealed_credentials_${userId}_${Date.now()}.enc`,
+        { type: 'application/octet-stream' }
+      );
+
       const walrusResult = await walrusClient.storeQuilt([{
         identifier: `sealed_credentials_${userId}_${Date.now()}`,
-        file: new Blob([envelopeEncryptedCredentials], { type: 'application/octet-stream' }),
+        file: credentialFile,
         tags: {
           userId,
           userAddress,
@@ -132,9 +117,9 @@ export class SealCredentialManager {
       // Step 1: Create transaction to validate access policy
       const tx = new Transaction();
       tx.moveCall({
-        target: `${this.packageId}::credential_access::seal_approve`,
+        target: `${this.packageId}::donation_pool::seal_approve`,
         arguments: [
-          tx.pure.vector("u8", fromHEX(credentialData.policyId)),
+          tx.pure.vector("u8", fromHex(credentialData.policyId)),
           tx.object('0x6'), // Clock object for time-based policies
         ]
       });
@@ -152,11 +137,11 @@ export class SealCredentialManager {
       });
 
       // Step 3: Retrieve envelope-encrypted data from Walrus
-      const envelopeEncryptedData = await walrusClient.retrieve(credentialData.walrusQuiltId);
+      const envelopeEncryptedData = await walrusClient.retrieveBlob(credentialData.walrusQuiltId);
 
       // Step 4: Decrypt the envelope using the symmetric key
       const decryptedCredentialData = await this.decryptWithSymmetricKey(
-        envelopeEncryptedData,
+        new Uint8Array(envelopeEncryptedData),
         decryptedSymmetricKey
       );
 
@@ -177,10 +162,9 @@ export class SealCredentialManager {
   ): Promise<SessionKey> {
     const sessionKey = await SessionKey.create({
       address: userAddress,
-      packageId: fromHEX(this.packageId),
+      packageId: this.packageId,
       ttlMin: SealCredentialManager.SESSION_TTL_MINUTES,
-      suiClient: this.suiClient,
-      mvr_name: 'aidchain-credentials', // Optional: if registered in Move Package Registry
+      suiClient: this.suiClient
     });
 
     const message = sessionKey.getPersonalMessage();
@@ -208,9 +192,9 @@ export class SealCredentialManager {
     const tx = new Transaction();
     packageCredentials.forEach(credData => {
       tx.moveCall({
-        target: `${this.packageId}::credential_access::seal_approve`,
+        target: `${this.packageId}::donation_pool::seal_approve`,
         arguments: [
-          tx.pure.vector("u8", fromHEX(credData.policyId)),
+          tx.pure.vector("u8", fromHex(credData.policyId)),
           tx.object('0x6'), // Clock object
         ]
       });
@@ -247,7 +231,7 @@ export class SealCredentialManager {
   private generatePolicyId(userId: string, credentialType: string): string {
     const timestamp = Date.now();
     const combined = `${userId}_${credentialType}_${timestamp}`;
-    return toHEX(new TextEncoder().encode(combined));
+    return toHex(new TextEncoder().encode(combined));
   }
 
   private async encryptWithSymmetricKey(data: string, key: Uint8Array): Promise<Uint8Array> {
