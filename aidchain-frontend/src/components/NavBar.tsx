@@ -39,7 +39,7 @@ export default function Navbar() {
               <div className="w-12 h-12 flex items-center justify-center">
                 <Image src={logo} alt="logo" width={80} />
               </div>
-              <span className="text-white font-medium text-xl sm:text-2xl tracking-widest">AIDCHAIN</span>
+              <span className="hidden sm:flex text-white font-medium text-xl sm:text-2xl tracking-widest">AIDCHAIN</span>
             </div>
             <div className="hidden items-center space-x-8 lg:flex">
               <button 

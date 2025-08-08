@@ -1,6 +1,7 @@
 import NavBar from '../../components/NavBar';
 import Hero from './components/Hero';
 import WhyAidChain from './components/WhyAidChain';
+import GlobalDonationTracker from './components/GlobalDonationTracker';
 import HowItWorks from './components/HowItWorks';
 import Footer from './components/Footer';
 
@@ -10,6 +11,7 @@ export default function Landing() {
         <NavBar />
         <Hero />
         <WhyAidChain />
+        <GlobalDonationTracker />
         <HowItWorks />
         <Footer />
     </main>
