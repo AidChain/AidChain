@@ -9,7 +9,6 @@ const client = new SuiClient({
 export const PACKAGE_ID = process.env.NEXT_PUBLIC_DONATION_POOL_PACKAGE_ID!;
 export const DONATION_POOL_ID = process.env.NEXT_PUBLIC_DONATION_POOL_OBJECT_ID!;
 export const ADMIN_CAP_ID = process.env.NEXT_PUBLIC_ADMIN_CAP_OBJECT!;
-export const WALRUS_AGGREGATOR_URL = process.env.WALRUS_AGGREGATOR_URL!;
 
 export async function createDonationTransaction(
   donorAddress: string,
@@ -110,22 +109,6 @@ export async function getBlobIdFromContract(objectId: string): Promise<string | 
   // Safely extract blob_id if it exists
   const blobId = (content.fields as any)?.blob_id as string | undefined;
   return blobId ?? null;
-}
-
-/**
- * Retrieves the public URL for a blob stored in Walrus via your aggregator API.
- * @param blobId - The identifier of the blob
- * @returns The URL if accessible, or null if not found
- */
-export async function fetchBlobFromWalrus(blobId: string): Promise<string | null> {
-  const url = `${WALRUS_AGGREGATOR_URL}/v1/blobs/${encodeURIComponent(blobId)}`;
-
-  try {
-    await axios.head(url);
-    return url;
-  } catch {
-    return null;
-  }
 }
 
 export { client as suiClient };
