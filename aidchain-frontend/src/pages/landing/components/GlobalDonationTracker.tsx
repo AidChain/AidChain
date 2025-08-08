@@ -431,7 +431,7 @@ export function GlobeDemo() {
 // Main Component
 const GlobalDonationTracker: React.FC = () => {
   return (
-    <div className="w-full max-w-6xl mx-auto p-6 bg-gray-950 min-h-screen mb-[8rem]">
+    <section id="aidchain-in-action" className="w-full max-w-6xl mx-auto p-6 bg-gray-950 min-h-screen mb-[8rem]">
       <div className="space-y-6">
 
         {/* Globe Map */}
@@ -440,7 +440,7 @@ const GlobalDonationTracker: React.FC = () => {
         {/* Activity Feed */}
         <ActivityFeed />
       </div>
-    </div>
+    </section>
   );
 };
 

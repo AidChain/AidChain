@@ -49,6 +49,12 @@ export default function Navbar() {
                 Home
               </button>
               <button 
+                onClick={() => scrollToSection('aidchain-in-action')}
+                className="text-slate-300 hover:text-white hover:cursor-pointer transition-colors duration-200 font-medium text-lg"
+              >
+                AidChain in Action
+              </button>
+              <button 
                 onClick={() => scrollToSection('why-aidchain')}
                 className="text-slate-300 hover:text-white hover:cursor-pointer transition-colors duration-200 font-medium text-lg"
               >

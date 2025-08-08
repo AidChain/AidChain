@@ -82,8 +82,8 @@ const ActivityFeed = () => {
 
   return (
     <div className="h-102 flex flex-col">
-      <h3 className="text-3xl font-semibold text-gray-100">Live Activity Feed</h3>
-      <p className="text-lg text-gray-400 mt-1 mb-4">Real-time donations and redemptions worldwide</p>
+      <h3 className="text-3xl font-semibold text-gray-100 text-center">Live Activity Feed</h3>
+      <p className="text-lg text-gray-400 mt-1 mb-4 text-center">Real-time donations and redemptions worldwide</p>
       
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
         <div className="p-4 space-y-3">

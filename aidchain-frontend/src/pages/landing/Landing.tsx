@@ -10,8 +10,8 @@ export default function Landing() {
     return <main>
         <NavBar />
         <Hero />
-        <WhyAidChain />
         <GlobalDonationTracker />
+        <WhyAidChain />
         <HowItWorks />
         <Footer />
     </main>
