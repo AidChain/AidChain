@@ -13,7 +13,7 @@ export default function RecipientContent() {
             Your transparent donation platform dashboard.
           </p>
         </div>
-        <div className="flex flex-row gap-8 h-full w-full">
+        <div className="flex flex-col gap-8 h-full w-full">
           <div className="flex flex-2 flex-col bg-red-400 h-inherit">
             
           </div>

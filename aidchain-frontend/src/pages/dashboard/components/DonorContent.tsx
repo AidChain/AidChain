@@ -45,24 +45,28 @@ export default function DonorContent() {
   const recipients = [
     {
       id: "rec1",
-      recipient: "Test Recipient 1",
-      image: "https://picsum.photos/200/200?random=1"
+      recipient: "Seeds of Hope Foundation",
+      image: "https://picsum.photos/200/200?random=1",
+      description: "Based in rural Kenya, Seeds of Hope provides food, clean water, and school supplies to orphaned children and single-mother households. Donations help fund weekly care packages and tuition aid."
     },
     {
       id: "rec2",
-      recipient: "Test Recipient 2",
-      image: "https://picsum.photos/200/200?random=2"
+      recipient: "Amaan Refugee Network",
+      image: "https://picsum.photos/200/200?random=2",
+      description: "Operating across Syrian and Palestinian refugee camps in Jordan, Amaan coordinates essential medical support, baby formula, and emergency aid to families who lack access to stable housing or income."
     },
     {
       id: "rec3",
-      recipient: "Test Recipient 3",
-      image: "https://picsum.photos/200/200?random=3"
+      recipient: "Bayanihan Women’s Shelter",
+      image: "https://picsum.photos/200/200?random=3",
+      description: "Located in the Philippines, Bayanihan offers safe housing, meals, and skills training to women escaping domestic abuse. Donations cover essentials like hygiene kits, food, and trauma counseling services."
     },
     {
       id: "rec4",
-      recipient: "Test Recipient 4",
-      image: "https://picsum.photos/200/200?random=4"
-    },
+      recipient: "Northern Highlands Indigenous Support Trust",
+      image: "https://picsum.photos/200/200?random=4",
+      description: "Serving indigenous Quechua communities in Peru, this trust focuses on providing winter clothing, solar lanterns, and access to telehealth services for elders and children in remote villages."
+    }
   ];
 
   // Hard-coded donation data
@@ -210,9 +214,9 @@ export default function DonorContent() {
                     recipients.map((item, index) => (
                       <li key={item.id}>
                         <RecipientCard 
-                          id={item.id}
                           recipient={item.recipient}
                           image={item.image}
+                          description={item.description}
                         />
                       </li>
                     ))

@@ -3,6 +3,7 @@ import React from 'react';
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import ActivityFeed from '@/components/ActivityTracker';
+import AnimatedContent from '@/components/AnimatedContent';
  
 const World = dynamic(() => import("../../../components/Globe").then((m) => m.World), {
   ssr: false,
@@ -431,6 +432,7 @@ export function GlobeDemo() {
 // Main Component
 const GlobalDonationTracker: React.FC = () => {
   return (
+    <AnimatedContent>
     <section id="aidchain-in-action" className="w-full max-w-6xl mx-auto p-6 bg-gray-950 min-h-screen mb-[8rem]">
       <div className="space-y-6">
 
@@ -441,6 +443,7 @@ const GlobalDonationTracker: React.FC = () => {
         <ActivityFeed />
       </div>
     </section>
+    </AnimatedContent>
   );
 };
 

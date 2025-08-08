@@ -25,11 +25,6 @@ export default function Navbar() {
     }
   };
 
-  const handleHomeClick = () => {
-    // Always redirect to landing page when Home is clicked
-    router.push('/');
-  };
-
   return (
     <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-[80vw]">
       <div className="bg-black/10 backdrop-blur-md border border-white/20 rounded-full px-8 py-4">
@@ -43,7 +38,7 @@ export default function Navbar() {
             </div>
             <div className="hidden items-center space-x-8 lg:flex">
               <button 
-                onClick={handleHomeClick}
+                onClick={() => scrollToSection('home')}
                 className="text-slate-300 hover:text-white hover:cursor-pointer transition-colors duration-200 font-medium text-lg"
               >
                 Home

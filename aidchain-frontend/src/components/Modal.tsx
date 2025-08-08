@@ -4,13 +4,14 @@ import { CloseOutlined } from '@ant-design/icons';
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 
-interface QRCodeModalProps {
+interface ModalProps {
+  children: React.ReactNode;
+  header: string;
   isOpen: boolean;
-  onClose: () => void;
-  address: string;
+  onClose: () => void
 }
 
-export default function QRCodeModal({ isOpen, onClose, address }: QRCodeModalProps) {
+export default function Modal({ children, header, isOpen, onClose }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -46,9 +47,6 @@ export default function QRCodeModal({ isOpen, onClose, address }: QRCodeModalPro
 
   if (!isOpen) return null;
 
-  // Generate QR code URL using qr-server.com API
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(address)}`;
-
   return (
     <div 
       ref={overlayRef}
@@ -57,12 +55,12 @@ export default function QRCodeModal({ isOpen, onClose, address }: QRCodeModalPro
     >
       <div 
         ref={modalRef}
-        className="bg-black backdrop-blur-lg border border-white/20 rounded-2xl p-8 max-w-md w-full"
+        className="bg-black backdrop-blur-lg border border-white/20 rounded-2xl p-8"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-white">Wallet Address QR Code</h3>
+          <h3 className="text-xl font-semibold text-white">{header}</h3>
           <button
             onClick={handleClose}
             className="cursor-pointer p-2 hover:bg-white/10 rounded-full transition-colors duration-200"
@@ -74,25 +72,8 @@ export default function QRCodeModal({ isOpen, onClose, address }: QRCodeModalPro
           </button>
         </div>
 
-        {/* QR Code */}
         <div className="text-center space-y-4">
-          <div className="bg-white p-4 rounded-xl mx-auto w-fit">
-            <img 
-              src={qrCodeUrl} 
-              alt="Wallet Address QR Code"
-              className="w-64 h-64"
-            />
-          </div>
-          
-          {/* Address */}
-          <div className="bg-black/20 rounded-lg p-3">
-            <p className="text-white/70 text-sm mb-1">Wallet Address:</p>
-            <p className="text-white font-mono text-xs break-all">{address}</p>
-          </div>
-          
-          <p className="text-white/60 text-sm">
-            Scan this QR code to copy the wallet address
-          </p>
+          {children}
         </div>
       </div>
     </div>
