@@ -36,7 +36,6 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Secure credential storage error:', error);
     return NextResponse.json(
       { error: 'Failed to store secure credentials' },
       { status: 500 }

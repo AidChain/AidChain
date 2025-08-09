@@ -67,21 +67,25 @@ export class SealCredentialManager {
         symmetricKey
       );
 
-      // Store on Walrus
-      const credentialFile = new File(
-        [envelopeEncryptedCredentials], 
-        `sealed_credentials_${userId}_${Date.now()}.enc`,
-        { type: 'application/octet-stream' }
-      );
+      console.log('🔍 Storing envelope on Walrus, size:', envelopeEncryptedCredentials);
 
-      const walrusResult = await walrusClient.storeBlob(credentialFile, {
-        epochs: 200,
+      // Check size limit (1MB = 1,048,576 bytes)
+      if (envelopeEncryptedCredentials.length > 1048576) {
+        throw new Error(`Encrypted data too large: ${envelopeEncryptedCredentials.length} bytes (max 1MB)`);
+      }
+      
+      const walrusResult = await walrusClient.storeBlob(envelopeEncryptedCredentials, {
+        epochs: 5,
         deletable: false
       });
 
       const walrusBlobId = walrusResult.newlyCreated?.blobObject.blobId || 
                           walrusResult.alreadyCertified?.blobId || '';
       
+      if (!walrusBlobId) {
+        throw new Error('No blob ID returned from Walrus');
+      }
+
       console.log('✅ Walrus storage successful, blob ID:', walrusBlobId);
 
       return {
@@ -96,7 +100,7 @@ export class SealCredentialManager {
       };
     } catch (error) {
       console.error('Failed to store secure credentials:', error);
-      throw new Error(`Credential storage failed: ${error}`);
+      throw error;
     }
   }
 
@@ -148,7 +152,6 @@ export class SealCredentialManager {
 
       // Step 1: Create SessionKey programmatically (no wallet popup!)
       const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, zkLoginKeypair);
-      console.log('✅ SessionKey created for decryption in retrieveSecureCredentials', sessionKey);
 
       // Step 2: Build the seal_approve transaction
       const tx = new Transaction();
@@ -167,17 +170,25 @@ export class SealCredentialManager {
 
       console.log('✅ Built seal_approve transaction');
 
-      // Step 3: Decrypt using SessionKey (as per Seal SDK requirements)
+      // Step 3: Decrypt using SessionKey
       const decryptedSymmetricKey = await this.sealClient.decrypt({
         data: credentialData.sealEncryptedKey,
-        sessionKey, // ← This is what Seal SDK expects!
+        sessionKey,
         txBytes,
       });
 
       console.log('✅ Seal decryption successful');
 
-      // Step 4: Retrieve from Walrus
-      const envelopeEncryptedData = await walrusClient.retrieveBlob(credentialData.walrusBlobId);
+      // Step 4: Retrieve from Walrus via API route
+      const walrusResponse = await fetch(`/api/walrus/blob/${credentialData.walrusBlobId}`);
+      
+      if (!walrusResponse.ok) {
+        throw new Error(`Failed to retrieve from Walrus: ${walrusResponse.status} ${walrusResponse.statusText}`);
+      }
+
+      const envelopeEncryptedData = await walrusResponse.arrayBuffer();
+
+      console.log('✅ Retrieved envelope from Walrus, size:', envelopeEncryptedData.byteLength);
 
       // Step 5: Decrypt envelope
       const decryptedCredentialData = await this.decryptWithSymmetricKey(
