@@ -1,4 +1,4 @@
-import { SealClient, SessionKey, getAllowlistedKeyServers } from '@mysten/seal';
+import { SealClient, getAllowlistedKeyServers, SessionKey } from '@mysten/seal';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromHex, toHex } from '@mysten/sui/utils';
@@ -10,7 +10,6 @@ export class SealCredentialManager {
   private sealClient: SealClient;
   private packageId: string;
   
-  // Use testnet key servers for now
   private static readonly KEY_SERVER_THRESHOLD = 2;
   private static readonly SESSION_TTL_MINUTES = 30;
 
@@ -18,7 +17,6 @@ export class SealCredentialManager {
     this.packageId = packageId;
     this.suiClient = new SuiClient({ url: getFullnodeUrl(network) });
     
-    // Get allowlisted key servers for the network
     const serverObjectIds = getAllowlistedKeyServers(network);
     
     this.sealClient = new SealClient({
@@ -27,7 +25,7 @@ export class SealCredentialManager {
         objectId: id,
         weight: 1,
       })),
-      verifyKeyServers: false, // Set to true in production for added security
+      verifyKeyServers: false,
     });
   }
 
@@ -45,7 +43,6 @@ export class SealCredentialManager {
       const credentialData = JSON.stringify(credentials);
       const dataToEncrypt = new TextEncoder().encode(credentialData);
       
-      // Ensure packageId is in correct format
       const formattedPackageId = this.packageId.startsWith('0x') ? this.packageId : `0x${this.packageId}`;
       
       console.log('🔍 Encrypting with Seal:', {
@@ -55,37 +52,30 @@ export class SealCredentialManager {
         dataLength: dataToEncrypt.length
       });
 
-      // Fix: Use string parameters as per updated Seal SDK
       const { encryptedObject: sealEncryptedKey, key: symmetricKey } = await this.sealClient.encrypt({
         threshold: SealCredentialManager.KEY_SERVER_THRESHOLD,
-        packageId: formattedPackageId, // String format (no fromHex conversion needed)
-        id: policyId,                  // String format (no fromHex conversion needed)
-        data: dataToEncrypt,           // Uint8Array
+        packageId: formattedPackageId,
+        id: policyId,
+        data: dataToEncrypt,
       });
 
-      console.log('✅ Seal encryption successful, encrypted key length:', sealEncryptedKey.length);
+      console.log('✅ Seal encryption successful');
 
-      // Step 3: Encrypt the actual credentials with the symmetric key (envelope encryption)
+      // Envelope encryption
       const envelopeEncryptedCredentials = await this.encryptWithSymmetricKey(
         credentialData, 
         symmetricKey
       );
 
-      // Step 4: Store the envelope-encrypted credentials on Walrus as a single blob
+      // Store on Walrus
       const credentialFile = new File(
         [envelopeEncryptedCredentials], 
         `sealed_credentials_${userId}_${Date.now()}.enc`,
         { type: 'application/octet-stream' }
       );
 
-      console.log('🔍 Storing on Walrus as single blob:', {
-        fileSize: credentialFile.size,
-        fileName: credentialFile.name
-      });
-
-      // Use storeBlob
       const walrusResult = await walrusClient.storeBlob(credentialFile, {
-        epochs: 200, // Long-term storage
+        epochs: 200,
         deletable: false
       });
 
@@ -94,19 +84,16 @@ export class SealCredentialManager {
       
       console.log('✅ Walrus storage successful, blob ID:', walrusBlobId);
 
-      // Step 5: Return credential metadata
-      const secureCredentialData: SecureCredentialData = {
+      return {
         userId,
         credentialType,
-        walrusBlobId: walrusBlobId, // Keep same field name for compatibility, but it's now a blob ID
+        walrusBlobId,
         sealEncryptedKey,
         accessLevel: 'user',
         createdAt: Date.now(),
         packageId: formattedPackageId,
         policyId
       };
-
-      return secureCredentialData;
     } catch (error) {
       console.error('Failed to store secure credentials:', error);
       throw new Error(`Credential storage failed: ${error}`);
@@ -114,46 +101,90 @@ export class SealCredentialManager {
   }
 
   /**
-   * Retrieves and decrypts credentials using Seal + Walrus
+   * Creates a SessionKey programmatically using zkLogin keypair (no wallet popup!)
+   */
+  private async createSessionKeyWithZkLogin(
+    userAddress: string,
+    zkLoginKeypair: any
+  ): Promise<SessionKey> {
+    try {
+      const formattedPackageId = this.packageId.startsWith('0x') ? this.packageId : `0x${this.packageId}`;
+      
+      console.log('🔍 Creating SessionKey with zkLogin keypair');
+
+      const sessionKey = await SessionKey.create({
+        address: userAddress,
+        packageId: formattedPackageId,
+        ttlMin: SealCredentialManager.SESSION_TTL_MINUTES,
+        suiClient: this.suiClient
+      });
+
+      const message = sessionKey.getPersonalMessage();
+      
+      // Sign with zkLogin keypair (no wallet popup!)
+      const signResult = await zkLoginKeypair.signPersonalMessage(message);
+      
+      // Set the signature
+      sessionKey.setPersonalMessageSignature(signResult.signature);
+      
+      console.log('✅ SessionKey created automatically with zkLogin');
+      return sessionKey;
+    } catch (error) {
+      console.error('Failed to create SessionKey with zkLogin:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves and decrypts credentials using zkLogin keypair
    */
   async retrieveSecureCredentials(
     credentialData: SecureCredentialData,
-    sessionKey: SessionKey
+    userAddress: string,
+    zkLoginKeypair: any
   ): Promise<DebitCardCredentials | null> {
     try {
-      // Fix: Build transaction according to documentation
+      console.log('🔍 Retrieving credentials with zkLogin keypair');
+
+      // Step 1: Create SessionKey programmatically (no wallet popup!)
+      const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, zkLoginKeypair);
+      console.log('✅ SessionKey created for decryption in retrieveSecureCredentials', sessionKey);
+
+      // Step 2: Build the seal_approve transaction
       const tx = new Transaction();
       tx.moveCall({
         target: `${this.packageId}::donation_pool::seal_approve`,
         arguments: [
-          tx.pure.vector("u8", fromHex(credentialData.policyId)),
+          tx.pure.vector("u8", fromHex(credentialData.policyId.replace('0x', ''))),
           tx.object('0x6'), // Clock object
         ]
       });
 
-      // Build with correct options as per documentation
       const txBytes = await tx.build({ 
         client: this.suiClient, 
         onlyTransactionKind: true 
       });
 
-      // Use correct decrypt method signature
+      console.log('✅ Built seal_approve transaction');
+
+      // Step 3: Decrypt using SessionKey (as per Seal SDK requirements)
       const decryptedSymmetricKey = await this.sealClient.decrypt({
         data: credentialData.sealEncryptedKey,
-        sessionKey,
+        sessionKey, // ← This is what Seal SDK expects!
         txBytes,
       });
 
-      // Step 3: Retrieve envelope-encrypted data from Walrus
+      console.log('✅ Seal decryption successful');
+
+      // Step 4: Retrieve from Walrus
       const envelopeEncryptedData = await walrusClient.retrieveBlob(credentialData.walrusBlobId);
 
-      // Step 4: Decrypt the envelope using the symmetric key
+      // Step 5: Decrypt envelope
       const decryptedCredentialData = await this.decryptWithSymmetricKey(
         new Uint8Array(envelopeEncryptedData),
         decryptedSymmetricKey
       );
 
-      // Step 5: Parse and return credentials
       return JSON.parse(decryptedCredentialData) as DebitCardCredentials;
     } catch (error) {
       console.error('Failed to retrieve secure credentials:', error);
@@ -162,103 +193,81 @@ export class SealCredentialManager {
   }
 
   /**
-   * Creates a session key for accessing credentials
+   * Batch retrieve multiple credentials efficiently with zkLogin
+   * Optimized to reuse SessionKey across multiple decryptions
    */
-  async createSessionKey(
-    userAddress: string,
-    signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }>
-  ): Promise<SessionKey> {
-    try {
-      const sessionKey = await SessionKey.create({
-        address: userAddress,
-        packageId: this.packageId,
-        ttlMin: SealCredentialManager.SESSION_TTL_MINUTES,
-        suiClient: this.suiClient
-      });
-
-      const message = sessionKey.getPersonalMessage();
-      const { signature } = await signPersonalMessage(message);
-      
-      // Fix: Convert base64 signature to hex format that Seal expects
-      try {
-        // Try the signature as-is first
-        sessionKey.setPersonalMessageSignature(signature);
-      } catch (error) {
-        // If that fails, try converting base64 to hex
-        try {
-          const binaryString = atob(signature);
-          const hexSignature = Array.from(binaryString)
-            .map(char => char.charCodeAt(0).toString(16).padStart(2, '0'))
-            .join('');
-          sessionKey.setPersonalMessageSignature(hexSignature);
-        } catch (conversionError) {
-          // If conversion fails, try without the leading 'A' character (common base64 signature prefix)
-          const cleanSignature = signature.startsWith('A') ? signature.slice(1) : signature;
-          sessionKey.setPersonalMessageSignature(cleanSignature);
-        }
-      }
-
-      return sessionKey;
-    } catch (error) {
-      console.error('Failed to create session key:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Batch retrieve multiple credentials efficiently
-   */
-  async retrieveMultipleCredentials(
+  async retrieveMultipleCredentialsWithZkLogin(
     credentialDataList: SecureCredentialData[],
-    sessionKey: SessionKey
+    userAddress: string,
+    zkLoginKeypair: any
   ): Promise<DebitCardCredentials[]> {
-    // Group by package ID (should all be the same in our case)
-    const packageCredentials = credentialDataList.filter(
-      cred => cred.packageId === this.packageId
-    );
+    console.log(`🔍 Batch retrieving ${credentialDataList.length} credentials`);
 
-    if (packageCredentials.length === 0) return [];
+    try {
+      // Create SessionKey once for all operations (optimization!)
+      const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, zkLoginKeypair);
+      console.log('✅ SessionKey created for batch retrieval in retrieveMultipleCredentialsWithZkLogin', sessionKey);
+      
+      const results: DebitCardCredentials[] = [];
+      
+      // Process in parallel for better performance
+      const promises = credentialDataList.map(async (credData) => {
+        try {
+          // Build transaction for this credential
+          const tx = new Transaction();
+          tx.moveCall({
+            target: `${this.packageId}::donation_pool::seal_approve`,
+            arguments: [
+              tx.pure.vector("u8", fromHex(credData.policyId.replace('0x', ''))),
+              tx.object('0x6'),
+            ]
+          });
 
-    // Create batch transaction for all seal_approve calls
-    const tx = new Transaction();
-    packageCredentials.forEach(credData => {
-      tx.moveCall({
-        target: `${this.packageId}::donation_pool::seal_approve`,
-        arguments: [
-          tx.pure.vector("u8", fromHex(credData.policyId)),
-          tx.object('0x6'), // Clock object
-        ]
+          const txBytes = await tx.build({ 
+            client: this.suiClient, 
+            onlyTransactionKind: true 
+          });
+
+          // Decrypt with shared SessionKey
+          const decryptedSymmetricKey = await this.sealClient.decrypt({
+            data: credData.sealEncryptedKey,
+            sessionKey, // Reuse same SessionKey!
+            txBytes,
+          });
+
+          // Retrieve and decrypt envelope
+          const envelopeEncryptedData = await walrusClient.retrieveBlob(credData.walrusBlobId);
+          const decryptedCredentialData = await this.decryptWithSymmetricKey(
+            new Uint8Array(envelopeEncryptedData),
+            decryptedSymmetricKey
+          );
+
+          return JSON.parse(decryptedCredentialData) as DebitCardCredentials;
+        } catch (error) {
+          console.error('Failed to decrypt individual credential:', error);
+          return null;
+        }
       });
-    });
 
-    const txBytes = await tx.build({ 
-      client: this.suiClient, 
-      onlyTransactionKind: true 
-    });
+      const decryptedCredentials = await Promise.allSettled(promises);
 
-    // Fetch all decryption keys at once
-    await this.sealClient.fetchKeys({
-      ids: packageCredentials.map(cred => cred.policyId),
-      txBytes,
-      sessionKey,
-      threshold: SealCredentialManager.KEY_SERVER_THRESHOLD,
-    });
+      decryptedCredentials.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+          results.push(result.value);
+        } else {
+          console.warn(`Failed to decrypt credential ${index}:`, result);
+        }
+      });
 
-    // Now decrypt each credential using cached keys
-    const results: DebitCardCredentials[] = [];
-    for (const credData of packageCredentials) {
-      try {
-        const credential = await this.retrieveSecureCredentials(credData, sessionKey);
-        if (credential) results.push(credential);
-      } catch (error) {
-        console.error(`Failed to decrypt credential ${credData.policyId}:`, error);
-      }
+      console.log(`✅ Successfully retrieved ${results.length}/${credentialDataList.length} credentials`);
+      return results;
+    } catch (error) {
+      console.error('Failed to batch retrieve credentials:', error);
+      return [];
     }
-
-    return results;
   }
 
-  // Helper methods
+  // Helper methods (unchanged)
   private generatePolicyId(userId: string, credentialType: string): string {
     const timestamp = Date.now();
     const combined = `${userId}_${credentialType}_${timestamp}`;
@@ -266,16 +275,15 @@ export class SealCredentialManager {
   }
 
   private async encryptWithSymmetricKey(data: string, key: Uint8Array): Promise<Uint8Array> {
-    // Use Web Crypto API for AES-GCM encryption
     const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      key.slice(0, 32), // Use first 32 bytes for AES-256
+      key.slice(0, 32),
       { name: 'AES-GCM' },
       false,
       ['encrypt']
     );
 
-    const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for GCM
+    const iv = crypto.getRandomValues(new Uint8Array(12));
     const encodedData = new TextEncoder().encode(data);
 
     const encrypted = await crypto.subtle.encrypt(
@@ -284,7 +292,6 @@ export class SealCredentialManager {
       encodedData
     );
 
-    // Combine IV and encrypted data
     const result = new Uint8Array(iv.length + encrypted.byteLength);
     result.set(iv);
     result.set(new Uint8Array(encrypted), iv.length);
@@ -295,14 +302,14 @@ export class SealCredentialManager {
   private async decryptWithSymmetricKey(encryptedData: Uint8Array, key: Uint8Array): Promise<string> {
     const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      key.slice(0, 32), // Use first 32 bytes for AES-256
+      key.slice(0, 32),
       { name: 'AES-GCM' },
       false,
       ['decrypt']
     );
 
-    const iv = encryptedData.slice(0, 12); // First 12 bytes are IV
-    const data = encryptedData.slice(12); // Rest is encrypted data
+    const iv = encryptedData.slice(0, 12);
+    const data = encryptedData.slice(12);
 
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },

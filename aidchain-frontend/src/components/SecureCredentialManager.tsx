@@ -1,19 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useZkLogin } from '@/providers/ZkLoginProvider';
 import { SealCredentialManager } from '@/lib/seal-credential-manager';
 import { SecureCredentialData, DebitCardCredentials } from '@/types/credentials';
-import { SessionKey } from '@mysten/seal';
 
 interface SecureCredentialManagerProps {
   packageId: string;
 }
 
 export default function SecureCredentialManager({ packageId }: SecureCredentialManagerProps) {
-  const { userAddress, signPersonalMessage } = useZkLogin();
+  const { userAddress, zkLoginService } = useZkLogin();
   const [credentialManager] = useState(() => new SealCredentialManager(packageId));
-  const [sessionKey, setSessionKey] = useState<SessionKey | null>(null);
   const [storedCredentials, setStoredCredentials] = useState<SecureCredentialData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,43 +20,10 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
     expiryDate: '',
     cvv: '',
     bankName: '',
-    weeklyLimit: 1000000000, // 1 SUI in MIST
+    weeklyLimit: 1000000000,
     isActive: true,
     userId: userAddress || ''
   });
-
-  const createSessionKey = async () => {
-    if (!userAddress || !signPersonalMessage) return;
-
-    try {
-      setIsLoading(true);
-      
-      const session = await credentialManager.createSessionKey(
-        userAddress,
-        async (message: Uint8Array) => {
-          const result = await signPersonalMessage(message);
-          return { signature: result.signature };
-        }
-      );
-      
-      setSessionKey(session);
-      
-      // Store session creation timestamp and user info (non-sensitive data only)
-      localStorage.setItem('sealSessionCreated', JSON.stringify({
-        userAddress,
-        createdAt: Date.now(),
-        packageId
-      }));
-      
-      console.log('✅ Session key created successfully (not stored for security)');
-      
-    } catch (error) {
-      console.error('Failed to create session key:', error);
-      alert('Failed to create session key. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const storeCredentials = async () => {
     if (!userAddress || !newCredentials.cardNumber) return;
@@ -81,6 +46,8 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
       const result = await response.json();
       if (result.success) {
         setStoredCredentials(prev => [...prev, result.credentialData]);
+        
+        // Reset form
         setNewCredentials({
           cardNumber: '',
           expiryDate: '',
@@ -91,8 +58,8 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
           userId: userAddress
         });
         
-        console.log('✅ Credentials stored successfully:', result.credentialData);
-        alert('Credentials stored securely with Seal encryption!');
+        console.log('✅ Credentials stored successfully');
+        alert('Credentials stored securely!');
       } else {
         throw new Error(result.error || 'Storage failed');
       }
@@ -105,35 +72,31 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
   };
 
   const retrieveCredentials = async (credentialData: SecureCredentialData) => {
-    if (!sessionKey) {
-      alert('Please create a session key first');
+    if (!zkLoginService.hasValidSession()) {
+      alert('Please login first');
       return;
     }
 
     try {
       setIsLoading(true);
       
-      // Since we can't serialize SessionKey, we need to recreate it for API calls
-      // or handle retrieval differently
-      const response = await fetch('/api/credentials/retrieve-secure', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credentialData,
-          // Instead of sessionKey data, we'll handle this server-side differently
-          userAddress,
-          packageId
-        })
-      });
+      const keypair = zkLoginService.getKeypair();
+      if (!keypair) {
+        throw new Error('No zkLogin keypair available');
+      }
 
-      const result = await response.json();
-      if (result.success && result.credentials) {
-        console.log('✅ Retrieved credentials:', result.credentials);
-        
-        // Display credentials in a secure way (masked for security)
-        alert(`Retrieved card ending in ****${result.credentials.cardNumber.slice(-4)} from ${result.credentials.bankName}`);
+      // Use the new method that doesn't require SessionKey!
+      const credentials = await credentialManager.retrieveSecureCredentials(
+        credentialData,
+        userAddress!,
+        keypair
+      );
+
+      if (credentials) {
+        console.log('✅ Retrieved credentials:', credentials);
+        alert(`Retrieved card ending in ****${credentials.cardNumber.slice(-4)} from ${credentials.bankName}`);
       } else {
-        throw new Error(result.error || 'Retrieval failed');
+        throw new Error('Failed to decrypt credentials');
       }
     } catch (error) {
       console.error('Failed to retrieve credentials:', error);
@@ -143,23 +106,33 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
     }
   };
 
-  // Clear session data when user changes
-  useEffect(() => {
-    const sessionInfo = localStorage.getItem('sealSessionCreated');
-    if (sessionInfo) {
-      try {
-        const parsed = JSON.parse(sessionInfo);
-        // If user changed or session is old (> 30 minutes), clear it
-        if (parsed.userAddress !== userAddress || 
-            Date.now() - parsed.createdAt > 30 * 60 * 1000) {
-          localStorage.removeItem('sealSessionCreated');
-          setSessionKey(null);
-        }
-      } catch (error) {
-        localStorage.removeItem('sealSessionCreated');
+  const retrieveAllCredentials = async () => {
+    if (!zkLoginService.hasValidSession() || storedCredentials.length === 0) return;
+
+    try {
+      setIsLoading(true);
+      
+      const keypair = zkLoginService.getKeypair();
+      if (!keypair) {
+        throw new Error('No zkLogin keypair available');
       }
+
+      // Batch retrieve all credentials!
+      const allCredentials = await credentialManager.retrieveMultipleCredentialsWithZkLogin(
+        storedCredentials,
+        userAddress!,
+        keypair
+      );
+
+      console.log('✅ Retrieved all credentials:', allCredentials);
+      alert(`Successfully retrieved ${allCredentials.length} credential sets!`);
+    } catch (error) {
+      console.error('Failed to retrieve all credentials:', error);
+      alert('Failed to retrieve credentials. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [userAddress]);
+  };
 
   if (!userAddress) {
     return (
@@ -173,28 +146,17 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
     <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
       <h3 className="text-xl font-semibold mb-4 text-white">Secure Credential Management</h3>
       
-      {/* Session Key Management */}
+      {/* zkLogin Status */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-white/70">Session Key Status:</span>
-          <span className={`px-2 py-1 rounded text-sm ${sessionKey ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-            {sessionKey ? 'Active' : 'Inactive'}
+          <span className="text-white/70">zkLogin Status:</span>
+          <span className="px-2 py-1 rounded text-sm bg-green-500/20 text-green-400">
+            ✅ Authenticated - Instant Access
           </span>
         </div>
-        {!sessionKey && (
-          <button
-            onClick={createSessionKey}
-            disabled={isLoading}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-2 rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-200 disabled:opacity-50"
-          >
-            {isLoading ? 'Creating...' : 'Create Session Key'}
-          </button>
-        )}
-        {sessionKey && (
-          <div className="text-green-400 text-sm">
-            ✅ Session active - You can now store and retrieve credentials securely
-          </div>
-        )}
+        <div className="text-green-400 text-sm">
+          🚀 No SessionKey needed - Direct access with zkLogin private key!
+        </div>
       </div>
 
       {/* Store New Credentials */}
@@ -242,7 +204,17 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
       {/* Stored Credentials */}
       {storedCredentials.length > 0 && (
         <div>
-          <h4 className="text-lg font-medium mb-3 text-white">Stored Credentials</h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-lg font-medium text-white">Stored Credentials</h4>
+            <button
+              onClick={retrieveAllCredentials}
+              disabled={isLoading}
+              className="px-4 py-2 bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 transition-colors disabled:opacity-50"
+            >
+              {isLoading ? 'Retrieving...' : 'Retrieve All ⚡'}
+            </button>
+          </div>
+          
           <div className="space-y-2">
             {storedCredentials.map((cred, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
@@ -254,10 +226,10 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
                 </div>
                 <button
                   onClick={() => retrieveCredentials(cred)}
-                  disabled={!sessionKey || isLoading}
+                  disabled={isLoading}
                   className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors disabled:opacity-50"
                 >
-                  {isLoading ? 'Retrieving...' : 'Retrieve'}
+                  {isLoading ? 'Retrieving...' : 'Retrieve ⚡'}
                 </button>
               </div>
             ))}
@@ -267,13 +239,13 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
 
       {/* Security Info */}
       <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-        <h5 className="text-yellow-400 font-medium mb-2">🔒 Security Features</h5>
+        <h5 className="text-yellow-400 font-medium mb-2">🔒 Streamlined Security</h5>
         <ul className="text-yellow-300/80 text-sm space-y-1">
-          <li>• Encrypted with Seal (Identity-Based Encryption)</li>
-          <li>• Stored on decentralized Walrus network</li>
-          <li>• Access controlled by on-chain policies</li>
-          <li>• Threshold encryption (2-of-N key servers)</li>
-          <li>• Session keys never stored locally</li>
+          <li>• Identity-Based Encryption via Seal</li>
+          <li>• Decentralized storage on Walrus</li>
+          <li>• Direct zkLogin authentication</li>
+          <li>• <strong>Zero wallet popups!</strong> ⚡</li>
+          <li>• <strong>Instant access</strong> with private key</li>
         </ul>
       </div>
     </div>
