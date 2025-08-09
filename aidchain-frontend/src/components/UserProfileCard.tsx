@@ -5,7 +5,6 @@ import { CopyOutlined, QrcodeOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import QRCodeModal from './QRCodeModal';
-import SecureCredentialManager from './SecureCredentialManager';
 
 interface Asset {
   type: string;
@@ -336,14 +335,6 @@ export default function UserProfileCard({ onShowSnackbar }: UserProfileCardProps
         </div>
       </div>
 
-      {/* Add Secure Credential Management Section */}
-      {isAuthenticated && userAddress && (
-        <div className="mt-6 border-t border-white/10 pt-6">
-          <SecureCredentialManager 
-            packageId={'0xf7bac49b4baea4c93c02f486ee4f2c6159b65de2192f047325ff5519b874dc76'} 
-          />
-        </div>
-      )}
       {/* QR Code Modal */}
       <QRCodeModal
         isOpen={showQRModal}

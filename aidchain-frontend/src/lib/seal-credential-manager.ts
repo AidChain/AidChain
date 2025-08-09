@@ -30,7 +30,7 @@ export class SealCredentialManager {
   }
 
   /**
-   * Encrypts and stores credentials using Seal + Walrus
+   * ✅ Simplified: Seal encrypt → Store directly on Walrus as text
    */
   async storeSecureCredentials(
     userId: string,
@@ -41,7 +41,6 @@ export class SealCredentialManager {
     try {
       const policyId = this.generatePolicyId(userId, credentialType);
       const credentialData = JSON.stringify(credentials);
-      const dataToEncrypt = new TextEncoder().encode(credentialData);
       
       const formattedPackageId = this.packageId.startsWith('0x') ? this.packageId : `0x${this.packageId}`;
       
@@ -49,32 +48,41 @@ export class SealCredentialManager {
         threshold: SealCredentialManager.KEY_SERVER_THRESHOLD,
         packageId: formattedPackageId,
         id: policyId,
-        dataLength: dataToEncrypt.length
+        dataLength: credentialData.length
       });
 
-      const { encryptedObject: sealEncryptedKey, key: symmetricKey } = await this.sealClient.encrypt({
+      // ✅ Step 1: Seal encryption (returns encrypted object + symmetric key)
+      const { encryptedObject } = await this.sealClient.encrypt({
         threshold: SealCredentialManager.KEY_SERVER_THRESHOLD,
         packageId: formattedPackageId,
         id: policyId,
-        data: dataToEncrypt,
+        data: new TextEncoder().encode(credentialData),
       });
 
       console.log('✅ Seal encryption successful');
+      console.log('🔍 Encrypted object info:', {
+        type: encryptedObject.constructor.name,
+        length: encryptedObject.length,
+        firstBytes: Array.from(encryptedObject.slice(0, 10))
+      });
 
-      // Envelope encryption
-      const envelopeEncryptedCredentials = await this.encryptWithSymmetricKey(
-        credentialData, 
-        symmetricKey
-      );
+      // ✅ Step 2: Convert encrypted Uint8Array to base64 string (more space efficient)
+      const encryptedObjectBase64 = btoa(String.fromCharCode(...encryptedObject));
 
-      console.log('🔍 Storing envelope on Walrus, size:', envelopeEncryptedCredentials);
+      console.log('🔍 Storing on Walrus as base64 text:', {
+        originalSize: encryptedObject.length,
+        base64Length: encryptedObjectBase64.length,
+        compressionRatio: `${((encryptedObject.length / encryptedObjectBase64.length) * 100).toFixed(1)}%`,
+        base64Preview: encryptedObjectBase64.substring(0, 50) + '...'
+      });
 
       // Check size limit (1MB = 1,048,576 bytes)
-      if (envelopeEncryptedCredentials.length > 1048576) {
-        throw new Error(`Encrypted data too large: ${envelopeEncryptedCredentials.length} bytes (max 1MB)`);
+      if (encryptedObjectBase64.length > 1048576) {
+        throw new Error(`Encrypted data too large: ${encryptedObjectBase64.length} bytes (max 1MB). Original: ${encryptedObject.length} bytes`);
       }
-      
-      const walrusResult = await walrusClient.storeBlob(envelopeEncryptedCredentials, {
+
+      // ✅ Step 3: Store base64 string directly on Walrus as text
+      const walrusResult = await walrusClient.storeBlob(encryptedObjectBase64, {
         epochs: 5,
         deletable: false
       });
@@ -92,7 +100,6 @@ export class SealCredentialManager {
         userId,
         credentialType,
         walrusBlobId,
-        sealEncryptedKey,
         accessLevel: 'user',
         createdAt: Date.now(),
         packageId: formattedPackageId,
@@ -101,6 +108,116 @@ export class SealCredentialManager {
     } catch (error) {
       console.error('Failed to store secure credentials:', error);
       throw error;
+    }
+  }
+
+  /**
+   * ✅ Simplified: Fetch from Walrus → Seal decrypt
+   */
+  async retrieveSecureCredentials(
+    credentialData: SecureCredentialData,
+    userAddress: string,
+    signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }>
+  ): Promise<DebitCardCredentials | null> {
+    try {
+      console.log('🔍 Retrieving credentials with Enoki signing');
+      console.log('🔍 Credential data:', {
+        policyId: credentialData.policyId,
+        walrusBlobId: credentialData.walrusBlobId
+      });
+
+      // ✅ Step 1: Create SessionKey using Enoki signing
+      const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, signPersonalMessage);
+
+      // ✅ Step 2: Build the seal_approve transaction
+      const tx = new Transaction();
+      
+      // Process policyId to bytes
+      let policyIdBytes: Uint8Array;
+      
+      if (credentialData.policyId.startsWith('0x')) {
+        policyIdBytes = fromHex(credentialData.policyId.slice(2));
+      } else {
+        try {
+          policyIdBytes = fromHex(credentialData.policyId);
+        } catch (hexError) {
+          policyIdBytes = new TextEncoder().encode(credentialData.policyId);
+        }
+      }
+
+      tx.moveCall({
+        target: `${this.packageId}::donation_pool::seal_approve`,
+        arguments: [
+          tx.pure.vector("u8", Array.from(policyIdBytes)),
+          tx.object('0x6'),
+        ]
+      });
+
+      const txBytes = await tx.build({ 
+        client: this.suiClient, 
+        onlyTransactionKind: true 
+      });
+
+      console.log('✅ Built seal_approve transaction');
+
+      // ✅ Step 3: Fetch encrypted data from Walrus
+      console.log('🔍 Fetching encrypted data from Walrus...');
+      const encryptedDataBuffer = await walrusClient.retrieveBlob(credentialData.walrusBlobId);
+      
+      // Convert ArrayBuffer to string (hex format)
+      const encryptedDataText = new TextDecoder().decode(encryptedDataBuffer);
+      console.log('✅ Retrieved encrypted data from Walrus:', {
+        textLength: encryptedDataText.length,
+        textPreview: encryptedDataText.substring(0, 50) + '...'
+      });
+
+      // ✅ Step 4: Convert base64 string back to Uint8Array for Seal
+      let encryptedObjectData: Uint8Array;
+
+      try {
+        // Convert base64 back to Uint8Array
+        const binaryString = atob(encryptedDataText);
+        encryptedObjectData = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          encryptedObjectData[i] = binaryString.charCodeAt(i);
+        }
+        
+        console.log('✅ Successfully parsed base64 to Uint8Array:', {
+          base64Length: encryptedDataText.length,
+          uint8ArrayLength: encryptedObjectData.length,
+          firstBytes: Array.from(encryptedObjectData.slice(0, 10))
+        });
+      } catch (base64Error) {
+        throw new Error(`Invalid base64 data from Walrus: ${base64Error}`);
+      }
+
+      // ✅ Step 5: Seal decrypt (returns original JSON data)
+      console.log('🔍 Calling Seal decrypt...');
+      const decryptedData = await this.sealClient.decrypt({
+        data: encryptedObjectData,
+        sessionKey,
+        txBytes,
+      });
+
+      console.log('✅ Seal decryption successful:', {
+        dataType: decryptedData.constructor.name,
+        dataLength: decryptedData.length
+      });
+
+      // ✅ Step 6: Convert decrypted data back to JSON
+      const decryptedText = new TextDecoder().decode(decryptedData);
+      const credentials = JSON.parse(decryptedText) as DebitCardCredentials;
+
+      console.log('✅ Final decryption successful');
+      return credentials;
+
+    } catch (error) {
+      console.error('Failed to retrieve secure credentials:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      return null;
     }
   }
 
@@ -154,132 +271,7 @@ export class SealCredentialManager {
     }
   }
 
-  /**
-   * Retrieves and decrypts credentials using zkLogin keypair
-   */
-  async retrieveSecureCredentials(
-    credentialData: SecureCredentialData,
-    userAddress: string,
-    signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }>
-  ): Promise<DebitCardCredentials | null> {
-    try {
-      console.log('🔍 Retrieving credentials with zkLogin keypair');
-      console.log('🔍 Credential data:', {
-        policyId: credentialData.policyId,
-        walrusBlobId: credentialData.walrusBlobId,
-        sealEncryptedKeyType: typeof credentialData.sealEncryptedKey,
-        sealEncryptedKeyConstructor: credentialData.sealEncryptedKey?.constructor?.name,
-        sealEncryptedKeyLength: credentialData.sealEncryptedKey?.length
-      });
-
-      // Step 1: Create SessionKey using Enoki signing
-      const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, signPersonalMessage);
-
-      // Step 2: Build the seal_approve transaction
-      const tx = new Transaction();
-      
-      // Fix: Ensure policyId is properly formatted as hex
-      let policyIdBytes: Uint8Array;
-      
-      if (credentialData.policyId.startsWith('0x')) {
-        // It's already a hex string
-        policyIdBytes = fromHex(credentialData.policyId.slice(2));
-      } else {
-        // Check if it's base64 or another format and convert appropriately
-        try {
-          // Try to decode as hex first (without 0x prefix)
-          policyIdBytes = fromHex(credentialData.policyId);
-        } catch (hexError) {
-          // If hex fails, try base64
-          try {
-            const base64Decoded = atob(credentialData.policyId);
-            policyIdBytes = new TextEncoder().encode(base64Decoded);
-          } catch (base64Error) {
-            // If both fail, treat as plain text
-            policyIdBytes = new TextEncoder().encode(credentialData.policyId);
-          }
-        }
-      }
-
-      console.log('🔍 Policy ID processing:', {
-        originalPolicyId: credentialData.policyId,
-        policyIdBytesLength: policyIdBytes.length,
-        policyIdBytesPreview: Array.from(policyIdBytes.slice(0, 10))
-      });
-
-      tx.moveCall({
-        target: `${this.packageId}::donation_pool::seal_approve`,
-        arguments: [
-          tx.pure.vector("u8", Array.from(policyIdBytes)), // Convert Uint8Array to regular array
-          tx.object('0x6'), // Clock object
-        ]
-      });
-
-      const txBytes = await tx.build({ 
-        client: this.suiClient, 
-        onlyTransactionKind: true 
-      });
-
-      console.log('✅ Built seal_approve transaction');
-
-      // Step 3: Ensure sealEncryptedKey is in correct format
-      const sealKey = credentialData.sealEncryptedKey;
-      let sealEncryptedKeyData: Uint8Array;
-
-      if (sealKey instanceof Uint8Array) {
-        sealEncryptedKeyData = sealKey;
-      } else if (typeof sealKey === 'string') {
-        sealEncryptedKeyData = fromHex(sealKey);
-      } else if (Array.isArray(sealKey)) {
-        sealEncryptedKeyData = new Uint8Array(sealKey);
-      } else {
-        throw new Error(`Unsupported sealEncryptedKey format: ${typeof sealKey}`);
-      }
-
-      console.log('🔍 Formatted sealEncryptedKey:', {
-        type: sealEncryptedKeyData.constructor.name,
-        length: sealEncryptedKeyData.length,
-        firstBytes: Array.from(sealEncryptedKeyData.slice(0, 10))
-      });
-
-      // Step 4: Decrypt using SessionKey with properly formatted data
-      const decryptedSymmetricKey = await this.sealClient.decrypt({
-        data: sealEncryptedKeyData,
-        sessionKey,
-        txBytes,
-      });
-
-      console.log('✅ Seal decryption successful');
-
-      // Step 5: Retrieve from Walrus via API route
-      const walrusResponse = await fetch(`/api/walrus/blob/${credentialData.walrusBlobId}`);
-      
-      if (!walrusResponse.ok) {
-        throw new Error(`Failed to retrieve from Walrus: ${walrusResponse.status} ${walrusResponse.statusText}`);
-      }
-
-      const envelopeEncryptedData = await walrusResponse.arrayBuffer();
-
-      console.log('✅ Retrieved envelope from Walrus, size:', envelopeEncryptedData.byteLength);
-
-      // Step 6: Decrypt envelope
-      const decryptedCredentialData = await this.decryptWithSymmetricKey(
-        new Uint8Array(envelopeEncryptedData),
-        decryptedSymmetricKey
-      );
-
-      return JSON.parse(decryptedCredentialData) as DebitCardCredentials;
-    } catch (error) {
-      console.error('Failed to retrieve secure credentials:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      return null;
-    }
-  }
-
-  // Helper methods (unchanged)
+  // Helper methods
   private generatePolicyId(userId: string, credentialType: string): string {
     const timestamp = Date.now();
     const combined = `${userId}_${credentialType}_${timestamp}`;
@@ -288,51 +280,5 @@ export class SealCredentialManager {
     // Convert to hex string, ensuring it starts with 0x
     const hexString = toHex(encoded);
     return hexString.startsWith('0x') ? hexString : `0x${hexString}`;
-  }
-
-  private async encryptWithSymmetricKey(data: string, key: Uint8Array): Promise<Uint8Array> {
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      key.slice(0, 32),
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt']
-    );
-
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encodedData = new TextEncoder().encode(data);
-
-    const encrypted = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
-      cryptoKey,
-      encodedData
-    );
-
-    const result = new Uint8Array(iv.length + encrypted.byteLength);
-    result.set(iv);
-    result.set(new Uint8Array(encrypted), iv.length);
-
-    return result;
-  }
-
-  private async decryptWithSymmetricKey(encryptedData: Uint8Array, key: Uint8Array): Promise<string> {
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      key.slice(0, 32),
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt']
-    );
-
-    const iv = encryptedData.slice(0, 12);
-    const data = encryptedData.slice(12);
-
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      cryptoKey,
-      data
-    );
-
-    return new TextDecoder().decode(decrypted);
   }
 }

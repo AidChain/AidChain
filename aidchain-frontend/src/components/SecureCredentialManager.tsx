@@ -102,33 +102,6 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
     }
   };
 
-  // // ✅ Update retrieveAllCredentials to use signPersonalMessage instead of zkLoginService
-  // const retrieveAllCredentials = async () => {
-  //   if (!isAuthenticated || storedCredentials.length === 0) {
-  //     alert('Please login and store some credentials first');
-  //     return;
-  //   }
-
-  //   try {
-  //     setIsLoading(true);
-
-  //     // ✅ Update to use the new retrieveMultipleCredentialsWithZkLogin method signature
-  //     const allCredentials = await credentialManager.retrieveMultipleCredentialsWithZkLogin(
-  //       storedCredentials,
-  //       userAddress!,
-  //       signPersonalMessage // Pass the signing function instead of keypair
-  //     );
-
-  //     console.log('✅ Retrieved all credentials:', allCredentials);
-  //     alert(`✅ Successfully retrieved ${allCredentials.length} credential sets!`);
-  //   } catch (error) {
-  //     console.error('Failed to retrieve all credentials:', error);
-  //     alert('❌ Failed to retrieve credentials. Please try again.');
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
   if (!userAddress) {
     return (
       <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">

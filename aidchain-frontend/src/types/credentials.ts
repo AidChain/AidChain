@@ -1,23 +1,21 @@
 export interface SecureCredentialData {
   userId: string;
-  credentialType: 'debit_card' | 'identity' | 'bank_account';
-  walrusBlobId: string; // Walrus storage reference
-  sealEncryptedKey: Uint8Array; // Seal-encrypted symmetric key
-  accessLevel: 'user' | 'admin' | 'organization';
+  credentialType: string;
+  walrusBlobId: string;
+  accessLevel: string;
   createdAt: number;
-  expiresAt?: number;
-  packageId: string; // Move package controlling access
-  policyId: string; // Unique policy identifier
+  packageId: string;
+  policyId: string;
 }
 
 export interface DebitCardCredentials {
+  userId: string;
   cardNumber: string;
   expiryDate: string;
   cvv: string;
   bankName: string;
   weeklyLimit: number;
   isActive: boolean;
-  userId: string;
 }
 
 export interface IdentityCredentials {

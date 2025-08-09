@@ -30,9 +30,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       credentialData: {
-        ...secureCredentialData,
-        // Convert Uint8Array to base64 for JSON serialization
-        sealEncryptedKey: Buffer.from(secureCredentialData.sealEncryptedKey).toString('base64')
+        ...secureCredentialData
       }
     });
   } catch (error) {
