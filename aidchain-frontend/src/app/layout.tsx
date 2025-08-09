@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Figtree } from "next/font/google";
 import "./globals.css";
 import { ZkLoginProvider } from "@/providers/ZkLoginProvider";
+import { SuiProvider } from "@/providers/SuiProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={figtree.className}>
-        <ZkLoginProvider>{children}</ZkLoginProvider>
+        <SuiProvider><ZkLoginProvider>{children}</ZkLoginProvider></SuiProvider>
         </body>
     </html>
   );

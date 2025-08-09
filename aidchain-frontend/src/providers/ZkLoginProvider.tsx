@@ -1,168 +1,132 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { ZkLoginService } from '@/lib/zklogin';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { 
+  useCurrentAccount, 
+  useConnectWallet, 
+  useDisconnectWallet,
+  useWallets,
+  useSignPersonalMessage,
+} from '@mysten/dapp-kit';
+import { isEnokiWallet, type EnokiWallet } from '@mysten/enoki';
 import { FaucetService } from '@/lib/faucet';
-import { suiClient } from '@/lib/sui-transactions';
+import { useRouter } from 'next/navigation';
 
 interface ZkLoginContextType {
-  zkLoginService: ZkLoginService;
   isAuthenticated: boolean;
   userAddress: string | null;
   login: () => Promise<void>;
   logout: () => void;
-  completeLogin: (jwt: string) => Promise<any>;
   isLoading: boolean;
   isFaucetLoading: boolean;
   signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }>;
+  enokiWallet: EnokiWallet | null;
 }
 
 const ZkLoginContext = createContext<ZkLoginContextType | null>(null);
 
 export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => {
-  const [zkLoginService] = useState(() => new ZkLoginService(suiClient));
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const currentAccount = useCurrentAccount();
+  const { mutate: connect } = useConnectWallet();
+  const { mutate: disconnect } = useDisconnectWallet();
+  const { mutateAsync: signMessage } = useSignPersonalMessage();
+  const wallets = useWallets();
+  const router = useRouter();
+  
   const [isLoading, setIsLoading] = useState(false);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
 
-  // Check for existing session on mount
+  // Get the Google Enoki wallet
+  const enokiWallets = wallets.filter(isEnokiWallet);
+  const googleWallet = enokiWallets.find(wallet => wallet.provider === 'google') || null;
+
+  const isAuthenticated = !!currentAccount;
+  const userAddress = currentAccount?.address || null;
+
+  // ✅ Handle successful authentication
   useEffect(() => {
-    const checkExistingSession = () => {
-      const storedAddress = sessionStorage.getItem('zkLoginAddress');
-      const storedState = sessionStorage.getItem('zkLoginComplete');
-      const storedZkLoginState = sessionStorage.getItem('zkLoginState');
+    if (isAuthenticated && userAddress) {
+      const currentPath = window.location.pathname;
       
-      if (storedAddress && storedState && storedZkLoginState) {
-        try {
-          // Restore the full zkLogin state
-          const loginState = JSON.parse(storedZkLoginState);
-          const storedJWT = sessionStorage.getItem('zkLoginJWT');
-          
-          if (storedJWT && loginState) {
-            // Restore the state in zkLoginService
-            zkLoginService.restoreState(storedJWT, loginState);
-            
-            setIsAuthenticated(true);
-            setUserAddress(storedAddress);
-            
-            console.log('✅ Restored zkLogin session with keypair');
-          }
-        } catch (error) {
-          console.error('Failed to restore zkLogin session:', error);
-          // Clear invalid session data
-          logout();
+      // If we're on the loading page, continue with faucet process
+      if (currentPath === '/loading') {
+        console.log('✅ Authentication complete on loading page');
+        return;
+      }
+      
+      // If we're anywhere else and just got authenticated, redirect to dashboard
+      if (currentPath !== '/dashboard') {
+        console.log('✅ Authentication complete, redirecting to dashboard');
+        router.push('/dashboard');
+      }
+    }
+  }, [isAuthenticated, userAddress, router]);
+
+  // Request faucet SUI for new users (with balance check)
+  useEffect(() => {
+    if (!userAddress || !isAuthenticated) return;
+
+    const requestFaucetSui = async () => {
+      // Check if we've already handled faucet for this session
+      const faucetRequested = sessionStorage.getItem(`faucetRequested_${userAddress}`);
+      if (faucetRequested) return;
+
+      try {
+        setIsFaucetLoading(true);
+        console.log('🔍 Checking if faucet request is needed...');
+        
+        const success = await FaucetService.requestTestnetSui(userAddress);
+        
+        if (success) {
+          sessionStorage.setItem(`faucetRequested_${userAddress}`, 'true');
+          console.log('✅ Faucet handling completed');
+        } else {
+          console.log('ℹ️ Faucet request not needed or failed');
         }
+      } catch (error) {
+        console.error('Faucet request failed:', error);
+      } finally {
+        setIsFaucetLoading(false);
       }
     };
 
-    checkExistingSession();
-  }, [zkLoginService]);
+    // Add a small delay to let authentication settle
+    setTimeout(requestFaucetSui, 500);
+  }, [userAddress, isAuthenticated]);
 
-  const login = useCallback(async () => {
+  const login = async () => {
+    if (!googleWallet) {
+      throw new Error('Google wallet not available');
+    }
+
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      
-      // Initialize zkLogin flow
-      const { loginUrl, state } = await zkLoginService.initializeZkLogin();
-      
-      // Store login state in sessionStorage
-      sessionStorage.setItem('zkLoginState', JSON.stringify(state));
-      
-      // Redirect to Google OAuth
-      window.location.href = loginUrl;
+      // ✅ Use Enoki's built-in OAuth flow
+      connect({ wallet: googleWallet });
     } catch (error) {
-      console.error('zkLogin failed:', error);
+      console.error('Login failed:', error);
+      throw error;
+    } finally {
       setIsLoading(false);
     }
-  }, [zkLoginService]);
+  };
 
-  const logout = useCallback(() => {
-    setIsAuthenticated(false);
-    setUserAddress(null);
-    sessionStorage.removeItem('zkLoginState');
-    sessionStorage.removeItem('zkLoginJWT'); // ✅ Clear JWT
-    sessionStorage.removeItem('zkLoginAddress');
-    sessionStorage.removeItem('zkLoginComplete');
-    sessionStorage.removeItem('faucetRequested');
-  }, []);
-
-  // Method to complete login (called from callback)
-  const completeLogin = useCallback(async (jwt: string) => {
-    try {
-      const loginState = JSON.parse(sessionStorage.getItem('zkLoginState') || '{}');
-      const zkState = await zkLoginService.completeZkLogin(jwt, loginState);
-      
-      setIsAuthenticated(true);
-      setUserAddress(zkState.zkLoginUserAddress);
-      
-      // Store session - including JWT for restoration
-      sessionStorage.setItem('zkLoginAddress', zkState.zkLoginUserAddress);
-      sessionStorage.setItem('zkLoginComplete', 'true');
-      sessionStorage.setItem('zkLoginJWT', jwt); // ✅ Store JWT for restoration
-
-      // Request testnet SUI for new users (run in background)
-      requestFaucetSui(zkState.zkLoginUserAddress);
-      
-      return zkState;
-    } catch (error) {
-      console.error('Failed to complete zkLogin:', error);
-      throw error;
+  const logout = () => {
+    if (userAddress) {
+      sessionStorage.removeItem(`faucetRequested_${userAddress}`);
     }
-  }, [zkLoginService]);
+    sessionStorage.removeItem('faucetRequested'); // Legacy cleanup
+    disconnect();
+  };
 
-  // Request faucet SUI in background
-  const requestFaucetSui = useCallback(async (address: string) => {
-    // Check if we already requested faucet for this session
-    const faucetRequested = sessionStorage.getItem('faucetRequested');
-    if (faucetRequested) return;
-
-    try {
-      setIsFaucetLoading(true);
-      
-      // Check current balance first
-      const balance = await suiClient.getBalance({ owner: address });
-      const currentBalance = parseInt(balance.totalBalance);
-      
-      // Only request faucet if balance is very low (less than 0.1 SUI)
-      if (currentBalance < 100_000_000) { // 0.1 SUI in MIST
-        console.log('🚰 Requesting testnet SUI from faucet...');
-        
-        const success = await FaucetService.requestTestnetSui(address);
-        
-        if (success) {
-          sessionStorage.setItem('faucetRequested', 'true');
-          console.log('✅ Faucet request completed');
-        }
-      } else {
-        console.log('💰 User already has sufficient SUI balance');
-      }
-    } catch (error) {
-      console.error('Faucet request failed:', error);
-    } finally {
-      setIsFaucetLoading(false);
-    }
-  }, []);
-
-  const signPersonalMessage = async (message: Uint8Array) => {
-    if (!zkLoginService.hasValidSession()) {
+  const signPersonalMessage = async (message: Uint8Array): Promise<{ signature: string }> => {
+    if (!isAuthenticated) {
       throw new Error('No valid session - please login first');
     }
 
-    const keypair = zkLoginService.getKeypair();
-    if (!keypair) {
-      throw new Error('No keypair available');
-    }
-    
     try {
-      // Sign the message using the ephemeral keypair
-      const signatureResult = await keypair.signPersonalMessage(message);
-      console.log('✅ Signed personal message:', signatureResult);
-      
-      // Return just the signature bytes that Seal expects
-      return { 
-        signature: signatureResult.signature // This should be the raw signature string
-      };
+      const result = await signMessage({ message });
+      return { signature: result.signature };
     } catch (error) {
       console.error('Failed to sign personal message:', error);
       throw new Error('Failed to sign message');
@@ -170,15 +134,14 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
   };
 
   const value: ZkLoginContextType = {
-    zkLoginService,
     isAuthenticated,
     userAddress,
     login,
     logout,
-    completeLogin,
     isLoading,
     isFaucetLoading,
     signPersonalMessage,
+    enokiWallet: googleWallet,
   };
 
   return (

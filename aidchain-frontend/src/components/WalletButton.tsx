@@ -23,7 +23,7 @@ export const WalletButton = ({
   const { 
     isAuthenticated, 
     userAddress, 
-    login, 
+    login,
     logout,
     isLoading 
   } = useZkLogin();
@@ -34,16 +34,27 @@ export const WalletButton = ({
     setIsAnimating(true);
     
     try {
-      // Run animation first (GSAP returns a Promise when awaited)
+      // Run animation first
       await gsap.to('.wallet-button', {
         scale: 0.95,
         duration: 0.1,
         yoyo: true,
         repeat: 1,
       });
+
+      // ✅ Redirect to loading page first, then trigger Enoki login
+      router.push('/loading');
       
-      // Then handle login
-      await login();
+      // Slight delay to let the redirect happen
+      setTimeout(async () => {
+        try {
+          await login(); // This uses Enoki's built-in OAuth flow
+        } catch (error) {
+          console.error('Login failed:', error);
+          router.push('/?error=login_failed');
+        }
+      }, 500);
+
     } catch (error) {
       console.error('Login failed:', error);
     } finally {
@@ -52,18 +63,16 @@ export const WalletButton = ({
   };
 
   const handleDisconnect = () => {
-    logout(); // Your existing logout function
-    router.push('/'); // Redirect to landing page
+    logout();
+    router.push('/');
   };
 
   if (isAuthenticated && userAddress) {
-    const displayAddress = userAddress;
-
     return (
       <div className="flex items-center gap-2">
-        <div className="px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 text-sm font-mono">
-          {displayAddress}
-          <span className="ml-2 text-xs">zkLogin Wallet Address</span>
+        <div className="px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 text-sm font-mono"> 
+          {userAddress}
+          <span className="ml-2 text-xs">Enoki Wallet(REMOVE!)</span>
         </div>
         <GradientBorderButton
           onClick={handleDisconnect}
@@ -79,8 +88,8 @@ export const WalletButton = ({
   return (
     <GradientBorderButton
       onClick={handleConnect}
-      className={`wallet-button ${className}`}
       disabled={isAnimating || isLoading}
+      className={`wallet-button ${className}`}
       size={size}
     >
       {isLoading ? 'Connecting...' : 

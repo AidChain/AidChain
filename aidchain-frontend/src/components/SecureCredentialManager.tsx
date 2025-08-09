@@ -10,7 +10,7 @@ interface SecureCredentialManagerProps {
 }
 
 export default function SecureCredentialManager({ packageId }: SecureCredentialManagerProps) {
-  const { userAddress, zkLoginService } = useZkLogin();
+  const { userAddress, isAuthenticated, signPersonalMessage } = useZkLogin();
   const [credentialManager] = useState(() => new SealCredentialManager(packageId));
   const [storedCredentials, setStoredCredentials] = useState<SecureCredentialData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,18 +59,20 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
         });
         
         console.log('✅ Credentials stored successfully');
+        alert('✅ Credentials stored successfully!');
       } else {
         throw new Error(result.error || 'Storage failed');
       }
     } catch (error) {
       console.error('Failed to store credentials:', error);
+      alert('❌ Failed to store credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const retrieveCredentials = async (credentialData: SecureCredentialData) => {
-    if (!zkLoginService.hasValidSession()) {
+    if (!isAuthenticated) {
       alert('Please login first');
       return;
     }
@@ -78,59 +80,54 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
     try {
       setIsLoading(true);
       
-      const keypair = zkLoginService.getKeypair();
-      if (!keypair) {
-        throw new Error('No zkLogin keypair available');
-      }
-      
+      // ✅ Use signPersonalMessage from the new dapp-kit ZkLoginProvider
       const credentials = await credentialManager.retrieveSecureCredentials(
         credentialData,
         userAddress!,
-        keypair
+        signPersonalMessage // This now uses dapp-kit's useSignPersonalMessage
       );
 
       if (credentials) {
         console.log('✅ Retrieved credentials:', credentials);
-        alert(`Retrieved card ending in ****${credentials.cardNumber.slice(-4)} from ${credentials.bankName}`);
+        alert(`✅ Retrieved card ending in ****${credentials.cardNumber.slice(-4)} from ${credentials.bankName}`);
       } else {
         throw new Error('Failed to decrypt credentials');
       }
 
     } catch (error) {
       console.error('Failed to retrieve credentials:', error);
-      alert('Failed to retrieve credentials. Please try again.');
+      alert('❌ Failed to retrieve credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const retrieveAllCredentials = async () => {
-    if (!zkLoginService.hasValidSession() || storedCredentials.length === 0) return;
+  // // ✅ Update retrieveAllCredentials to use signPersonalMessage instead of zkLoginService
+  // const retrieveAllCredentials = async () => {
+  //   if (!isAuthenticated || storedCredentials.length === 0) {
+  //     alert('Please login and store some credentials first');
+  //     return;
+  //   }
 
-    try {
-      setIsLoading(true);
-      
-      const keypair = zkLoginService.getKeypair();
-      if (!keypair) {
-        throw new Error('No zkLogin keypair available');
-      }
+  //   try {
+  //     setIsLoading(true);
 
-      // Batch retrieve all credentials!
-      const allCredentials = await credentialManager.retrieveMultipleCredentialsWithZkLogin(
-        storedCredentials,
-        userAddress!,
-        keypair
-      );
+  //     // ✅ Update to use the new retrieveMultipleCredentialsWithZkLogin method signature
+  //     const allCredentials = await credentialManager.retrieveMultipleCredentialsWithZkLogin(
+  //       storedCredentials,
+  //       userAddress!,
+  //       signPersonalMessage // Pass the signing function instead of keypair
+  //     );
 
-      console.log('✅ Retrieved all credentials:', allCredentials);
-      alert(`Successfully retrieved ${allCredentials.length} credential sets!`);
-    } catch (error) {
-      console.error('Failed to retrieve all credentials:', error);
-      alert('Failed to retrieve credentials. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  //     console.log('✅ Retrieved all credentials:', allCredentials);
+  //     alert(`✅ Successfully retrieved ${allCredentials.length} credential sets!`);
+  //   } catch (error) {
+  //     console.error('Failed to retrieve all credentials:', error);
+  //     alert('❌ Failed to retrieve credentials. Please try again.');
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   if (!userAddress) {
     return (
@@ -144,16 +141,16 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
     <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
       <h3 className="text-xl font-semibold mb-4 text-white">Secure Credential Management</h3>
       
-      {/* zkLogin Status */}
+      {/* ✅ Update status display */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-white/70">zkLogin Status:</span>
+          <span className="text-white/70">Enoki Status:</span>
           <span className="px-2 py-1 rounded text-sm bg-green-500/20 text-green-400">
-            ✅ Authenticated - Instant Access
+            ✅ Connected via dapp-kit
           </span>
         </div>
         <div className="text-green-400 text-sm">
-          🚀 No SessionKey needed - Direct access with zkLogin private key!
+          🚀 Using new Enoki SDK with automatic signing!
         </div>
       </div>
 
@@ -202,7 +199,7 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
       {/* Stored Credentials */}
       {storedCredentials.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-3">
+          {/* <div className="flex items-center justify-between mb-3">
             <h4 className="text-lg font-medium text-white">Stored Credentials</h4>
             <button
               onClick={retrieveAllCredentials}
@@ -211,7 +208,7 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
             >
               {isLoading ? 'Retrieving...' : 'Retrieve All ⚡'}
             </button>
-          </div>
+          </div> */}
           
           <div className="space-y-2">
             {storedCredentials.map((cred, index) => (
@@ -235,15 +232,15 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
         </div>
       )}
 
-      {/* Security Info */}
+      {/* ✅ Updated Security Info */}
       <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-        <h5 className="text-yellow-400 font-medium mb-2">🔒 Streamlined Security</h5>
+        <h5 className="text-yellow-400 font-medium mb-2">🔒 Next-Gen Security</h5>
         <ul className="text-yellow-300/80 text-sm space-y-1">
           <li>• Identity-Based Encryption via Seal</li>
           <li>• Decentralized storage on Walrus</li>
-          <li>• Direct zkLogin authentication</li>
+          <li>• <strong>New Enoki SDK</strong> with dapp-kit integration</li>
           <li>• <strong>Zero wallet popups!</strong> ⚡</li>
-          <li>• <strong>Instant access</strong> with private key</li>
+          <li>• <strong>Streamlined authentication</strong></li>
         </ul>
       </div>
     </div>

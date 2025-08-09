@@ -4,8 +4,6 @@ import { Transaction } from '@mysten/sui/transactions';
 import { fromHex, toHex } from '@mysten/sui/utils';
 import { walrusClient } from './walrus-client';
 import { SecureCredentialData, DebitCardCredentials } from '@/types/credentials';
-import { sign } from 'crypto';
-import { EnokiService } from './enoki';
 
 export class SealCredentialManager {
   private suiClient: SuiClient;
@@ -111,14 +109,12 @@ export class SealCredentialManager {
    */
   private async createSessionKeyWithZkLogin(
     userAddress: string,
-    zkLoginKeypair: any
+    signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }>
   ): Promise<SessionKey> {
     try {
       const formattedPackageId = this.packageId.startsWith('0x') ? this.packageId : `0x${this.packageId}`;
       
-      console.log('🔍 Creating SessionKey with zkLogin keypair');
-      console.log('🔍 zkLoginKeypair type:', typeof zkLoginKeypair);
-      console.log('🔍 zkLoginKeypair methods:', Object.getOwnPropertyNames(zkLoginKeypair));
+      console.log('🔍 Creating SessionKey with Enoki wallet');
 
       const sessionKey = await SessionKey.create({
         address: userAddress,
@@ -131,25 +127,18 @@ export class SealCredentialManager {
       console.log('🔍 SessionKey personal message:', {
         messageType: typeof message,
         messageLength: message.length,
-        messagePreview: Array.from(message.slice(0, 20))
       });
       
-      // Add try-catch around the signing operation
       try {
-        console.log('🔍 About to call zkLoginKeypair.signPersonalMessage...');
+        console.log('🔍 Signing with Enoki wallet...');
         
-        // Sign with zkLogin keypair (no wallet popup!)
-        const { signResult } = await zkLoginKeypair.signPersonalMessage(message);
+        // Use the dapp-kit signing function
+        const { signature } = await signPersonalMessage(message);
         
-        console.log('🔍 zkLogin keypair signed message successfully:', {
-          signResult,
-          signatureType: typeof signResult?.signature,
-          signatureLength: signResult?.signature?.length
-        });
+        console.log('✅ Enoki wallet signed message successfully');
         
         // Set the signature
-        console.log('🔍 About to call sessionKey.setPersonalMessageSignature...');
-        sessionKey.setPersonalMessageSignature(signResult);
+        sessionKey.setPersonalMessageSignature(signature);
         console.log('✅ SessionKey signature set successfully');
         
       } catch (signingError) {
@@ -157,10 +146,10 @@ export class SealCredentialManager {
         throw signingError;
       }
       
-      console.log('✅ SessionKey created automatically with zkLogin');
+      console.log('✅ SessionKey created with Enoki wallet');
       return sessionKey;
     } catch (error) {
-      console.error('❌ Failed to create SessionKey with zkLogin:', error);
+      console.error('❌ Failed to create SessionKey:', error);
       throw error;
     }
   }
@@ -171,7 +160,7 @@ export class SealCredentialManager {
   async retrieveSecureCredentials(
     credentialData: SecureCredentialData,
     userAddress: string,
-    zkLoginKeypair: any
+    signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }>
   ): Promise<DebitCardCredentials | null> {
     try {
       console.log('🔍 Retrieving credentials with zkLogin keypair');
@@ -183,8 +172,8 @@ export class SealCredentialManager {
         sealEncryptedKeyLength: credentialData.sealEncryptedKey?.length
       });
 
-      // Step 1: Create SessionKey programmatically (no wallet popup!)
-      const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, zkLoginKeypair);
+      // Step 1: Create SessionKey using Enoki signing
+      const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, signPersonalMessage);
 
       // Step 2: Build the seal_approve transaction
       const tx = new Transaction();
@@ -287,100 +276,6 @@ export class SealCredentialManager {
         stack: error instanceof Error ? error.stack : undefined
       });
       return null;
-    }
-  }
-
-  /**
-   * Batch retrieve multiple credentials efficiently with zkLogin
-   * Optimized to reuse SessionKey across multiple decryptions
-   */
-  async retrieveMultipleCredentialsWithZkLogin(
-    credentialDataList: SecureCredentialData[],
-    userAddress: string,
-    zkLoginKeypair: any
-  ): Promise<DebitCardCredentials[]> {
-    console.log(`🔍 Batch retrieving ${credentialDataList.length} credentials`);
-
-    try {
-      // Create SessionKey once for all operations (optimization!)
-      const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, zkLoginKeypair);
-      console.log('✅ SessionKey created for batch retrieval', sessionKey);
-      
-      const results: DebitCardCredentials[] = [];
-      
-      // Process in parallel for better performance
-      const promises = credentialDataList.map(async (credData) => {
-        try {
-          // Build transaction for this credential
-          const tx = new Transaction();
-          
-          // Fix: Same policyId handling as above
-          let policyIdBytes: Uint8Array;
-          
-          if (credData.policyId.startsWith('0x')) {
-            policyIdBytes = fromHex(credData.policyId.slice(2));
-          } else {
-            try {
-              policyIdBytes = fromHex(credData.policyId);
-            } catch (hexError) {
-              try {
-                const base64Decoded = atob(credData.policyId);
-                policyIdBytes = new TextEncoder().encode(base64Decoded);
-              } catch (base64Error) {
-                policyIdBytes = new TextEncoder().encode(credData.policyId);
-              }
-            }
-          }
-
-          tx.moveCall({
-            target: `${this.packageId}::donation_pool::seal_approve`,
-            arguments: [
-              tx.pure.vector("u8", Array.from(policyIdBytes)),
-              tx.object('0x6'),
-            ]
-          });
-
-          const txBytes = await tx.build({ 
-            client: this.suiClient, 
-            onlyTransactionKind: true 
-          });
-
-          // Decrypt with shared SessionKey
-          const decryptedSymmetricKey = await this.sealClient.decrypt({
-            data: credData.sealEncryptedKey,
-            sessionKey, // Reuse same SessionKey!
-            txBytes,
-          });
-
-          // Retrieve and decrypt envelope
-          const envelopeEncryptedData = await walrusClient.retrieveBlob(credData.walrusBlobId);
-          const decryptedCredentialData = await this.decryptWithSymmetricKey(
-            new Uint8Array(envelopeEncryptedData),
-            decryptedSymmetricKey
-          );
-
-          return JSON.parse(decryptedCredentialData) as DebitCardCredentials;
-        } catch (error) {
-          console.error('Failed to decrypt individual credential:', error);
-          return null;
-        }
-      });
-
-      const decryptedCredentials = await Promise.allSettled(promises);
-
-      decryptedCredentials.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value) {
-          results.push(result.value);
-        } else {
-          console.warn(`Failed to decrypt credential ${index}:`, result);
-        }
-      });
-
-      console.log(`✅ Successfully retrieved ${results.length}/${credentialDataList.length} credentials`);
-      return results;
-    } catch (error) {
-      console.error('Failed to batch retrieve credentials:', error);
-      return [];
     }
   }
 

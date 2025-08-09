@@ -68,9 +68,10 @@ export default function LoadingScreen({ progress, onLoadingComplete, isComplete 
 
   const getLoadingMessage = () => {
     if (isFaucetLoading) return 'Requesting testnet SUI...';
-    if (progress < 30) return 'Connecting to Google...';
-    if (progress < 60) return 'Generating ZK Proof...';
-    if (progress < 90) return 'Creating Wallet...';
+    if (progress < 25) return 'Connecting to Google...';
+    if (progress < 50) return 'Authenticating with Enoki...';
+    if (progress < 75) return 'Creating your Sui wallet...';
+    if (progress < 85) return 'Setting up your account...';
     return 'Almost Ready...';
   };
 
