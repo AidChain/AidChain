@@ -5,6 +5,7 @@ import { fromHex, toHex } from '@mysten/sui/utils';
 import { walrusClient } from './walrus-client';
 import { SecureCredentialData, DebitCardCredentials } from '@/types/credentials';
 import { sign } from 'crypto';
+import { EnokiService } from './enoki';
 
 export class SealCredentialManager {
   private suiClient: SuiClient;
@@ -138,7 +139,7 @@ export class SealCredentialManager {
         console.log('🔍 About to call zkLoginKeypair.signPersonalMessage...');
         
         // Sign with zkLogin keypair (no wallet popup!)
-        const signResult = await zkLoginKeypair.signPersonalMessage(message);
+        const { signResult } = await zkLoginKeypair.signPersonalMessage(message);
         
         console.log('🔍 zkLogin keypair signed message successfully:', {
           signResult,
@@ -148,7 +149,7 @@ export class SealCredentialManager {
         
         // Set the signature
         console.log('🔍 About to call sessionKey.setPersonalMessageSignature...');
-        sessionKey.setPersonalMessageSignature(signResult.signature);
+        sessionKey.setPersonalMessageSignature(signResult);
         console.log('✅ SessionKey signature set successfully');
         
       } catch (signingError) {
