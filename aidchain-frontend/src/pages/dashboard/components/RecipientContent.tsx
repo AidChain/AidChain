@@ -258,7 +258,7 @@ export default function RecipientContent() {
 
   return (
     <>
-      <div className="flex flex-col pt-8 pb-8 pr-8 pl-8 md:pl-0 h-full w-full gap-8 md:ml-72 mb-24 md:mb-0">
+      <div className="flex flex-col pt-8 pb-8 pr-8 pl-8 md:pl-0 h-full w-full gap-8 md:ml-72 mb-24 md:mb-0 md:overflow-x-scroll">
         <div className="flex flex-col gap-2 flex-shrink-0">
           <h2 className="text-white text-3xl sm:text-4xl font-semibold">Welcome back, 
           <span className="text-transparent bg-gradient-to-r from-teal-200 to-blue-500 bg-clip-text"> {username}</span>
@@ -309,14 +309,14 @@ export default function RecipientContent() {
                   <div className="relative">
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors min-w-[180px] justify-between"
+                      className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors min-w-[160px] justify-between"
                     >
                       <span className="truncate">{selectedOption.label}</span>
                       <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
                     
                     {isDropdownOpen && (
-                      <div className="absolute right-0 top-full mt-1 bg-slate-900 border border-gray-600 rounded-lg shadow-lg z-10 min-w-[180px]">
+                      <div className="absolute right-0 top-full mt-1 bg-slate-900 border border-gray-600 rounded-lg shadow-lg z-10 min-w-[160px]">
                         {filterOptions.map((option) => (
                           <button
                             key={option.value}

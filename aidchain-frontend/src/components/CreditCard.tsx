@@ -48,21 +48,21 @@ export default function CreditCard({ onShowSnackbar }: CreditCardProps) {
             <div className="flex flex-col gap-8">
               <div className="flex justify-between space-x-2">
                 <div className="flex items-center space-x-2">
-                  <div className="w-16 h-16 flex items-center justify-center">
+                  <div className="w-12 h-12 md:w-16 md:h-16 flex items-center justify-center">
                     <Image src={logo_white} alt="logo" width={80} />
                   </div>
-                  <span className="text-white font-medium text-2xl sm:text-3xl tracking-widest">AIDCHAIN</span>
+                  <span className="text-white font-medium text-xl sm:text-3xl tracking-widest">AIDCHAIN</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button 
-                    className={`flex cursor-pointer ${showCardDetails ? '' : 'bottom-4'} p-4 rounded-full hover:bg-white/10 justify-center items-center`}
+                    className={`flex cursor-pointer ${showCardDetails ? '' : 'bottom-4'} p-2 md:p-4 rounded-full hover:bg-white/10 justify-center items-center`}
                     onClick={() => {setshowCardDetails(!showCardDetails)}}
                   >
                     <EyeOutlined style={{ fontSize: '18px' }} />
                   </button>
                   <button
                     onClick={copyToClipboard}
-                    className="flex cursor-pointer p-4 hover:bg-white/10 rounded-full transition-colors duration-200"
+                    className="flex cursor-pointer p-2 md:p-4 hover:bg-white/10 rounded-full transition-colors duration-200"
                     title="Copy full address"
                   >
                     <CopyOutlined 

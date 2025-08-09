@@ -275,14 +275,14 @@ export default function DonorContent() {
                   <div className="relative">
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors min-w-[180px] justify-between"
+                      className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors w-[160px] truncate justify-between"
                     >
                       <span className="truncate">{selectedOption.label}</span>
                       <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
                     
                     {isDropdownOpen && (
-                      <div className="absolute right-0 top-full mt-1 bg-slate-900 border border-gray-600 rounded-lg shadow-lg z-10 min-w-[180px]">
+                      <div className="absolute right-0 top-full mt-1 bg-slate-900 border border-gray-600 rounded-lg shadow-lg z-20 w-[160px]">
                         {filterOptions.map((option) => (
                           <button
                             key={option.value}
