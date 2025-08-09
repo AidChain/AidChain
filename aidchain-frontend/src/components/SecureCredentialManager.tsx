@@ -59,13 +59,11 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
         });
         
         console.log('✅ Credentials stored successfully');
-        alert('Credentials stored securely!');
       } else {
         throw new Error(result.error || 'Storage failed');
       }
     } catch (error) {
       console.error('Failed to store credentials:', error);
-      alert('Failed to store credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -84,8 +82,7 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
       if (!keypair) {
         throw new Error('No zkLogin keypair available');
       }
-
-      // Use the new method that doesn't require SessionKey!
+      
       const credentials = await credentialManager.retrieveSecureCredentials(
         credentialData,
         userAddress!,
@@ -98,6 +95,7 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
       } else {
         throw new Error('Failed to decrypt credentials');
       }
+
     } catch (error) {
       console.error('Failed to retrieve credentials:', error);
       alert('Failed to retrieve credentials. Please try again.');

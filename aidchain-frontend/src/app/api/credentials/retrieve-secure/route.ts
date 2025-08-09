@@ -1,37 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SealCredentialManager } from '@/lib/seal-credential-manager';
-import { SessionKey } from '@mysten/seal';
 
 export async function POST(request: NextRequest) {
   try {
     const { 
       credentialData, 
-      sessionKeyData,
+      userAddress,
+      zkLoginKeypair,
       packageId 
     } = await request.json();
 
-    if (!credentialData || !sessionKeyData || !packageId) {
+    if (!credentialData || !userAddress || !zkLoginKeypair || !packageId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: credentialData, userAddress, zkLoginKeypair, packageId' },
         { status: 400 }
       );
     }
 
     const credentialManager = new SealCredentialManager(packageId);
     
-    // Fix: Parse the session key data correctly
-    const parsedSessionData = JSON.parse(sessionKeyData);
-    const sessionKey = new SessionKey(parsedSessionData);
-    
-    // Convert base64 back to Uint8Array
-    const credentialDataWithTypedArray = {
-      ...credentialData,
-      sealEncryptedKey: new Uint8Array(Buffer.from(credentialData.sealEncryptedKey, 'base64'))
-    };
-    
+    // Fix: Use the correct method signature with 3 parameters
     const credentials = await credentialManager.retrieveSecureCredentials(
-      credentialDataWithTypedArray,
-      sessionKey
+      credentialData,
+      userAddress,
+      zkLoginKeypair
     );
 
     if (!credentials) {

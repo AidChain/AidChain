@@ -4,6 +4,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { fromHex, toHex } from '@mysten/sui/utils';
 import { walrusClient } from './walrus-client';
 import { SecureCredentialData, DebitCardCredentials } from '@/types/credentials';
+import { sign } from 'crypto';
 
 export class SealCredentialManager {
   private suiClient: SuiClient;
@@ -115,6 +116,8 @@ export class SealCredentialManager {
       const formattedPackageId = this.packageId.startsWith('0x') ? this.packageId : `0x${this.packageId}`;
       
       console.log('🔍 Creating SessionKey with zkLogin keypair');
+      console.log('🔍 zkLoginKeypair type:', typeof zkLoginKeypair);
+      console.log('🔍 zkLoginKeypair methods:', Object.getOwnPropertyNames(zkLoginKeypair));
 
       const sessionKey = await SessionKey.create({
         address: userAddress,
@@ -124,17 +127,39 @@ export class SealCredentialManager {
       });
 
       const message = sessionKey.getPersonalMessage();
+      console.log('🔍 SessionKey personal message:', {
+        messageType: typeof message,
+        messageLength: message.length,
+        messagePreview: Array.from(message.slice(0, 20))
+      });
       
-      // Sign with zkLogin keypair (no wallet popup!)
-      const signResult = await zkLoginKeypair.signPersonalMessage(message);
-      
-      // Set the signature
-      sessionKey.setPersonalMessageSignature(signResult.signature);
+      // Add try-catch around the signing operation
+      try {
+        console.log('🔍 About to call zkLoginKeypair.signPersonalMessage...');
+        
+        // Sign with zkLogin keypair (no wallet popup!)
+        const signResult = await zkLoginKeypair.signPersonalMessage(message);
+        
+        console.log('🔍 zkLogin keypair signed message successfully:', {
+          signResult,
+          signatureType: typeof signResult?.signature,
+          signatureLength: signResult?.signature?.length
+        });
+        
+        // Set the signature
+        console.log('🔍 About to call sessionKey.setPersonalMessageSignature...');
+        sessionKey.setPersonalMessageSignature(signResult.signature);
+        console.log('✅ SessionKey signature set successfully');
+        
+      } catch (signingError) {
+        console.error('❌ Signing failed:', signingError);
+        throw signingError;
+      }
       
       console.log('✅ SessionKey created automatically with zkLogin');
       return sessionKey;
     } catch (error) {
-      console.error('Failed to create SessionKey with zkLogin:', error);
+      console.error('❌ Failed to create SessionKey with zkLogin:', error);
       throw error;
     }
   }
@@ -149,16 +174,53 @@ export class SealCredentialManager {
   ): Promise<DebitCardCredentials | null> {
     try {
       console.log('🔍 Retrieving credentials with zkLogin keypair');
+      console.log('🔍 Credential data:', {
+        policyId: credentialData.policyId,
+        walrusBlobId: credentialData.walrusBlobId,
+        sealEncryptedKeyType: typeof credentialData.sealEncryptedKey,
+        sealEncryptedKeyConstructor: credentialData.sealEncryptedKey?.constructor?.name,
+        sealEncryptedKeyLength: credentialData.sealEncryptedKey?.length
+      });
 
       // Step 1: Create SessionKey programmatically (no wallet popup!)
       const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, zkLoginKeypair);
 
       // Step 2: Build the seal_approve transaction
       const tx = new Transaction();
+      
+      // Fix: Ensure policyId is properly formatted as hex
+      let policyIdBytes: Uint8Array;
+      
+      if (credentialData.policyId.startsWith('0x')) {
+        // It's already a hex string
+        policyIdBytes = fromHex(credentialData.policyId.slice(2));
+      } else {
+        // Check if it's base64 or another format and convert appropriately
+        try {
+          // Try to decode as hex first (without 0x prefix)
+          policyIdBytes = fromHex(credentialData.policyId);
+        } catch (hexError) {
+          // If hex fails, try base64
+          try {
+            const base64Decoded = atob(credentialData.policyId);
+            policyIdBytes = new TextEncoder().encode(base64Decoded);
+          } catch (base64Error) {
+            // If both fail, treat as plain text
+            policyIdBytes = new TextEncoder().encode(credentialData.policyId);
+          }
+        }
+      }
+
+      console.log('🔍 Policy ID processing:', {
+        originalPolicyId: credentialData.policyId,
+        policyIdBytesLength: policyIdBytes.length,
+        policyIdBytesPreview: Array.from(policyIdBytes.slice(0, 10))
+      });
+
       tx.moveCall({
         target: `${this.packageId}::donation_pool::seal_approve`,
         arguments: [
-          tx.pure.vector("u8", fromHex(credentialData.policyId.replace('0x', ''))),
+          tx.pure.vector("u8", Array.from(policyIdBytes)), // Convert Uint8Array to regular array
           tx.object('0x6'), // Clock object
         ]
       });
@@ -170,16 +232,36 @@ export class SealCredentialManager {
 
       console.log('✅ Built seal_approve transaction');
 
-      // Step 3: Decrypt using SessionKey
+      // Step 3: Ensure sealEncryptedKey is in correct format
+      const sealKey = credentialData.sealEncryptedKey;
+      let sealEncryptedKeyData: Uint8Array;
+
+      if (sealKey instanceof Uint8Array) {
+        sealEncryptedKeyData = sealKey;
+      } else if (typeof sealKey === 'string') {
+        sealEncryptedKeyData = fromHex(sealKey);
+      } else if (Array.isArray(sealKey)) {
+        sealEncryptedKeyData = new Uint8Array(sealKey);
+      } else {
+        throw new Error(`Unsupported sealEncryptedKey format: ${typeof sealKey}`);
+      }
+
+      console.log('🔍 Formatted sealEncryptedKey:', {
+        type: sealEncryptedKeyData.constructor.name,
+        length: sealEncryptedKeyData.length,
+        firstBytes: Array.from(sealEncryptedKeyData.slice(0, 10))
+      });
+
+      // Step 4: Decrypt using SessionKey with properly formatted data
       const decryptedSymmetricKey = await this.sealClient.decrypt({
-        data: credentialData.sealEncryptedKey,
+        data: sealEncryptedKeyData,
         sessionKey,
         txBytes,
       });
 
       console.log('✅ Seal decryption successful');
 
-      // Step 4: Retrieve from Walrus via API route
+      // Step 5: Retrieve from Walrus via API route
       const walrusResponse = await fetch(`/api/walrus/blob/${credentialData.walrusBlobId}`);
       
       if (!walrusResponse.ok) {
@@ -190,7 +272,7 @@ export class SealCredentialManager {
 
       console.log('✅ Retrieved envelope from Walrus, size:', envelopeEncryptedData.byteLength);
 
-      // Step 5: Decrypt envelope
+      // Step 6: Decrypt envelope
       const decryptedCredentialData = await this.decryptWithSymmetricKey(
         new Uint8Array(envelopeEncryptedData),
         decryptedSymmetricKey
@@ -199,6 +281,10 @@ export class SealCredentialManager {
       return JSON.parse(decryptedCredentialData) as DebitCardCredentials;
     } catch (error) {
       console.error('Failed to retrieve secure credentials:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return null;
     }
   }
@@ -217,7 +303,7 @@ export class SealCredentialManager {
     try {
       // Create SessionKey once for all operations (optimization!)
       const sessionKey = await this.createSessionKeyWithZkLogin(userAddress, zkLoginKeypair);
-      console.log('✅ SessionKey created for batch retrieval in retrieveMultipleCredentialsWithZkLogin', sessionKey);
+      console.log('✅ SessionKey created for batch retrieval', sessionKey);
       
       const results: DebitCardCredentials[] = [];
       
@@ -226,10 +312,29 @@ export class SealCredentialManager {
         try {
           // Build transaction for this credential
           const tx = new Transaction();
+          
+          // Fix: Same policyId handling as above
+          let policyIdBytes: Uint8Array;
+          
+          if (credData.policyId.startsWith('0x')) {
+            policyIdBytes = fromHex(credData.policyId.slice(2));
+          } else {
+            try {
+              policyIdBytes = fromHex(credData.policyId);
+            } catch (hexError) {
+              try {
+                const base64Decoded = atob(credData.policyId);
+                policyIdBytes = new TextEncoder().encode(base64Decoded);
+              } catch (base64Error) {
+                policyIdBytes = new TextEncoder().encode(credData.policyId);
+              }
+            }
+          }
+
           tx.moveCall({
             target: `${this.packageId}::donation_pool::seal_approve`,
             arguments: [
-              tx.pure.vector("u8", fromHex(credData.policyId.replace('0x', ''))),
+              tx.pure.vector("u8", Array.from(policyIdBytes)),
               tx.object('0x6'),
             ]
           });
@@ -282,7 +387,11 @@ export class SealCredentialManager {
   private generatePolicyId(userId: string, credentialType: string): string {
     const timestamp = Date.now();
     const combined = `${userId}_${credentialType}_${timestamp}`;
-    return toHex(new TextEncoder().encode(combined));
+    const encoded = new TextEncoder().encode(combined);
+    
+    // Convert to hex string, ensuring it starts with 0x
+    const hexString = toHex(encoded);
+    return hexString.startsWith('0x') ? hexString : `0x${hexString}`;
   }
 
   private async encryptWithSymmetricKey(data: string, key: Uint8Array): Promise<Uint8Array> {
