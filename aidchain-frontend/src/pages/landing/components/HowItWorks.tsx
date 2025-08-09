@@ -2,6 +2,7 @@ import AnimatedContent from "@/components/AnimatedContent";
 import StepCard from "@/components/StepCard";
 import placeholder from "@/assets/food_carefree.webp";
 import donate from "@/assets/donate.png";
+import dist from "@/assets/dist.png";
 import spend from "@/assets/spend.png";
 import track from "@/assets/track.png";
 
@@ -20,7 +21,7 @@ export default function HowItWorks() {
             label: "STEP TWO",
             title: "Verified Distribution",
             description: "Recipients with mobile or card access receive donations directly. For those without access, trusted organizations in the region receive funds on their behalf and ensure essentials are delivered.",
-            imageSrc: placeholder,
+            imageSrc: dist,
             imageAlt: "Step two image"
         },
         {
