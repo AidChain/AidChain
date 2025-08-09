@@ -54,11 +54,6 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
         return;
       }
       
-      // If we're anywhere else and just got authenticated, redirect to dashboard
-      if (currentPath !== '/dashboard') {
-        console.log('✅ Authentication complete, redirecting to dashboard');
-        router.push('/dashboard');
-      }
     }
   }, [isAuthenticated, userAddress, router]);
 

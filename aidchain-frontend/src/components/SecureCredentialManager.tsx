@@ -59,13 +59,11 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
         });
         
         console.log('✅ Credentials stored successfully');
-        alert('✅ Credentials stored successfully!');
       } else {
         throw new Error(result.error || 'Storage failed');
       }
     } catch (error) {
       console.error('Failed to store credentials:', error);
-      alert('❌ Failed to store credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +71,6 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
 
   const retrieveCredentials = async (credentialData: SecureCredentialData) => {
     if (!isAuthenticated) {
-      alert('Please login first');
       return;
     }
 
@@ -89,14 +86,12 @@ export default function SecureCredentialManager({ packageId }: SecureCredentialM
 
       if (credentials) {
         console.log('✅ Retrieved credentials:', credentials);
-        alert(`✅ Retrieved card ending in ****${credentials.cardNumber.slice(-4)} from ${credentials.bankName}`);
       } else {
         throw new Error('Failed to decrypt credentials');
       }
 
     } catch (error) {
       console.error('Failed to retrieve credentials:', error);
-      alert('❌ Failed to retrieve credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
