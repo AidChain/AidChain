@@ -31,7 +31,7 @@ export default function RecipientCard({
             <div className="flex items-center justify-between w-full">
               {/* Profile Picture */}
               <div className="flex items-center gap-2">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/30">
+                <div className="w-20 rounded-full overflow-hidden border-2 border-white/30">
                   <Image
                     src={image}
                     alt="Profile Picture"
@@ -40,7 +40,7 @@ export default function RecipientCard({
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <span className="text-white/90 text-lg font-mono px-3 py-1 rounded-lg">
+                <span className="truncate w-48 text-white/90 text-md md:text-lg font-mono px-3 py-1 rounded-lg">
                     {recipient}
                 </span>
                 </div>

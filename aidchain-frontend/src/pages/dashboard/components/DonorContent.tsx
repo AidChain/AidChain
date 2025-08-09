@@ -233,6 +233,9 @@ export default function DonorContent() {
           <h2 className="text-white text-3xl sm:text-4xl font-semibold">Welcome back, 
           <span className="text-transparent bg-gradient-to-r from-teal-200 to-blue-500 bg-clip-text"> {username}</span>
           .</h2>
+          <p className="text-md sm:text-lg text-slate-300">
+            Your transparent donation platform dashboard.
+          </p>
         </div>
         <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0"> {/* Changed h-full to flex-1 and added min-h-0 */}
           <div className="flex flex-2 flex-col h-full gap-6">
@@ -366,8 +369,8 @@ export default function DonorContent() {
           {
         transactionData.map((item, index) => 
             <li key={index} className="relative z-10">
-              <div className="flex items-center justify-between w-full bg-white/10 border border-slate-300/10 rounded-lg px-3 py-4">
-                <p className="text-white/90 text-md md:text-lg">
+              <div className="flex items-center justify-between w-full bg-white/10 border border-slate-300/10 rounded-lg px-3 py-4 gap-4">
+                <p className="text-left text-white/90 text-md md:text-lg max-w-[80%]">
                     {item.recipient}
                 </p>
                 <p className="text-red-300 text-sm md:text-md">{`- $${item.amount}`}</p>

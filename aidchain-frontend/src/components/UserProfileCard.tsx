@@ -231,10 +231,10 @@ export default function UserProfileCard({ onShowSnackbar }: UserProfileCardProps
           
           <div className="relative z-10">
             {/* Profile Section */}
-            <div className="flex items-center justify-between w-full mb-8">
+            <div className="flex items-center justify-between w-full mb-8 gap-4">
               {/* Profile Picture */}
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/30">
+                <div className="w-16 sm:w-20 rounded-full overflow-hidden border-2 border-white/30">
                   <Image
                     src="https://picsum.photos/200"
                     alt="Profile Picture"
@@ -243,19 +243,19 @@ export default function UserProfileCard({ onShowSnackbar }: UserProfileCardProps
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <span className="text-white/90 text-lg font-mono bg-black/20 px-3 py-1 rounded-lg">
+                <span className="text-white/90 truncate w-20 md:w-full text-md md:text-lg font-mono bg-black/20 px-3 py-1 rounded-lg">
                     {formatAddress(userAddress)}
                 </span>
               </div>
 
               {/* Address and Actions */}
               <div className="flex min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center md:gap-2">
                   
                   {/* Copy Button */}
                   <button
                     onClick={copyToClipboard}
-                    className="cursor-pointer py-3 px-4 hover:bg-white/10 rounded-full transition-colors duration-200 group"
+                    className="cursor-pointer py-1 px-2 md:py-3 md:px-4 hover:bg-white/10 rounded-full transition-colors duration-200 group"
                     title="Copy full address"
                   >
                     <CopyOutlined 

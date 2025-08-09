@@ -1,6 +1,8 @@
 import AnimatedContent from "@/components/AnimatedContent";
 import StepCard from "@/components/StepCard";
 import placeholder from "@/assets/food_carefree.webp";
+import donate from "@/assets/donate.png";
+import track from "@/assets/track.png";
 
 export default function HowItWorks() {
     const steps = [
@@ -9,7 +11,7 @@ export default function HowItWorks() {
             label: "STEP ONE",
             title: "Donate",
             description: "Connect your wallet and send funds securely using the SUI blockchain. Donations are processed by a smart contract with no middlemen.",
-            imageSrc: placeholder,
+            imageSrc: donate,
             imageAlt: "Step one image"
         },
         {
@@ -33,7 +35,7 @@ export default function HowItWorks() {
             label: "STEP FOUR",
             title: "Track Every Cent",
             description: "Every donation and every expense is traceable via The Graph, allowing donors full transparency into where and how funds are used.",
-            imageSrc: placeholder,
+            imageSrc: track,
             imageAlt: "Step four image"
         }
     ]
