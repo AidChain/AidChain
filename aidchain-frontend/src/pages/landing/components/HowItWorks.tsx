@@ -2,6 +2,7 @@ import AnimatedContent from "@/components/AnimatedContent";
 import StepCard from "@/components/StepCard";
 import placeholder from "@/assets/food_carefree.webp";
 import donate from "@/assets/donate.png";
+import spend from "@/assets/spend.png";
 import track from "@/assets/track.png";
 
 export default function HowItWorks() {
@@ -27,7 +28,7 @@ export default function HowItWorks() {
             label: "STEP THREE",
             title: "Spend With Purpose",
             description: "Funds can only be used for essentials such as food, education, and healthcare - either by the recipient using their card or via verified vendor purchases made by partner organizations.",
-            imageSrc: placeholder,
+            imageSrc: spend,
             imageAlt: "Step three image"
         },
         {

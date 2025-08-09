@@ -10,8 +10,28 @@ import googleLogo from "@/assets/google-white-logo.png";
 import logo from "@/assets/logo.svg";
 import { XOutlined, LinkedinOutlined, InstagramOutlined, DiscordOutlined } from '@ant-design/icons';
 import GradientBorderButton from "@/components/GradientBorderButton";
+import { useRouter } from 'next/navigation';
 
 export default function Footer() {
+    const router = useRouter();
+    
+    const scrollToSection = (sectionId: string) => {
+    // Check if we're on the landing page
+    if (window.location.pathname === '/') {
+      // If on landing page, scroll to section
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }
+    } else {
+      // If on another page (like dashboard), redirect to landing page with section
+      router.push(`/#${sectionId}`);
+    }
+  };
+
     const logos = [
         {
             logo: suiLogo,
@@ -38,11 +58,7 @@ export default function Footer() {
     const links = [
         {
             pageName: "Home",
-            link: ""
-        },
-        {
-            pageName: "Log In",
-            link: ""
+            link: "home"
         },
         {
             pageName: "Terms of Use",
@@ -76,7 +92,7 @@ export default function Footer() {
     return <AnimatedContent>
         <section 
             id="footer" 
-            className="relative flex flex-col justify-start items-center w-screen gap-12 mb-[4rem]" 
+            className="relative flex flex-col justify-start items-center w-screen gap-12 pb-[4rem]" 
         >
             <div className="flex flex-col justify-center items-center gap-[2rem] w-screen min-h-[70vh] mb-[4rem]"
             style={{
@@ -109,7 +125,7 @@ export default function Footer() {
                 <div className="flex flex-1 flex-col gap-4">
                     <h2 className="text-lg sm:text-xl text-blue-500 font-semibold">PAGES</h2>
                     {links.map((item, index) => 
-                        <a key={index} className="text-lg text-slate-300 hover:text-white cursor-pointer transition-colors duration-200">
+                        <a key={index} className="text-lg text-slate-300 hover:text-white cursor-pointer transition-colors duration-200" onClick={() => {scrollToSection(item.link)}}>
                             {item.pageName}
                         </a>)}
                 </div>
