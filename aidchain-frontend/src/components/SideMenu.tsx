@@ -1,4 +1,4 @@
-import { LogoutOutlined, GiftOutlined, HeartOutlined, FileTextOutlined, HomeOutlined } from '@ant-design/icons';
+import { LogoutOutlined, GiftOutlined, HeartOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useZkLogin } from '@/providers/ZkLoginProvider';
 import { useRouter } from 'next/navigation';
 import logo from '@/assets/logo.svg';
