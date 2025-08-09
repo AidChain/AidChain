@@ -82,7 +82,7 @@ ${donationMessage ? `Message: "${donationMessage}"` : ''}`);
           <div className="relative z-10">
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
-                <div className="w-20 rounded-full overflow-hidden border-2 border-white/30">
+                <div className="w-16 md:w-20 rounded-full overflow-hidden border-2 border-white/30">
                   <Image
                     src={cardImage}
                     alt={card.target_name}
@@ -92,7 +92,7 @@ ${donationMessage ? `Message: "${donationMessage}"` : ''}`);
                   />
                 </div>
                 <div className="flex flex-col">
-                  <span className="truncate w-48 text-white/90 text-md md:text-lg font-mono px-3 py-1 rounded-lg">
+                  <span className="truncate w-32 md:w-42 text-white/90 text-md md:text-lg font-mono px-3 py-1 rounded-lg">
                     {card.target_name}
                   </span>
                   <span className="text-xs text-white/60 px-3">
@@ -125,7 +125,7 @@ ${donationMessage ? `Message: "${donationMessage}"` : ''}`);
         isOpen={showModal}
         onClose={() => setShowModal(false)}
       >
-        <div className='w-[80vw] md:w-[40vw]'>
+        <div className='w-[80vw] md:w-[50vw]'>
           <div className="mb-4">
             <Image
               src={cardImage}
