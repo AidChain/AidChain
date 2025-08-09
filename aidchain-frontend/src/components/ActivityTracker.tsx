@@ -75,7 +75,7 @@ const ActivityFeed = () => {
     };
 
     // Start after initial delay
-    const initialTimeout = setTimeout(generateAtInterval, 500);
+    const initialTimeout = setTimeout(generateAtInterval, 300);
     
     return () => clearTimeout(initialTimeout);
   }, []);

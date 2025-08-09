@@ -4,7 +4,6 @@ import AnimatedContent from "@/components/AnimatedContent"
 import Image from "next/image";
 import suiLogo from "@/assets/sui-logo.svg"; 
 import bgaLogo from "@/assets/BGA-Logo-Primary-Rev.png"; 
-import theGraphLogo from "@/assets/TheGraph-Logo-Light.svg"; 
 import cnbLogo from "@/assets/CNB-Logomark-White.png"; 
 import googleLogo from "@/assets/google-white-logo.png";
 import logo from "@/assets/logo.svg";
@@ -40,10 +39,6 @@ export default function Footer() {
         {
             logo: bgaLogo,
             logoAlt: "Blockchain For Good Alliance Logo"
-        },
-        {
-            logo: theGraphLogo,
-            logoAlt: "The Graph Logo"
         },
         {
             logo: cnbLogo,
