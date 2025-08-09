@@ -21,6 +21,9 @@ const figtree = Figtree({
 export const metadata: Metadata = {
   title: "AidChain - Transparent Donations for Social Good",
   description: "Revolutionary donation platform using blockchain transparency",
+  icons: {
+    icon: '/logo.svg', // Path relative to the public directory
+  },
 };
 
 export default function RootLayout({
