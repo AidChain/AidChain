@@ -1,7 +1,7 @@
 export interface SecureCredentialData {
   userId: string;
   credentialType: 'debit_card' | 'identity' | 'bank_account';
-  walrusQuiltId: string; // Walrus storage reference
+  walrusBlobId: string; // Walrus storage reference
   sealEncryptedKey: Uint8Array; // Seal-encrypted symmetric key
   accessLevel: 'user' | 'admin' | 'organization';
   createdAt: number;

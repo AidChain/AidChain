@@ -33,6 +33,8 @@ export interface WalrusStoreResponse {
   };
 }
 
+
+// not using for now.
 export interface WalrusQuiltResponse {
   blobStoreResult: WalrusStoreResponse;
   storedQuiltBlobs: Array<{

@@ -1,4 +1,4 @@
-import { WalrusStoreResponse, WalrusQuiltResponse } from '@/types/walrus';
+import { WalrusStoreResponse } from '@/types/walrus';
 
 export class WalrusClient {
   private publisherUrl: string;
@@ -45,55 +45,6 @@ export class WalrusClient {
   }
 
   /**
-   * Store multiple files as a Walrus Quilt
-   */
-  async storeQuilt(
-    files: Array<{ identifier: string; file: File; tags?: Record<string, string> }>,
-    options: {
-      epochs?: number;
-      deletable?: boolean;
-      sendObjectTo?: string;
-    } = {}
-  ): Promise<WalrusQuiltResponse> {
-    const { epochs = 5, deletable = false, sendObjectTo } = options;
-    
-    const url = new URL(`${this.publisherUrl}/v1/quilts`);
-    
-    // Add query parameters
-    if (epochs) url.searchParams.append('epochs', epochs.toString());
-    if (deletable) url.searchParams.append('deletable', 'true');
-    if (sendObjectTo) url.searchParams.append('send_object_to', sendObjectTo);
-
-    const formData = new FormData();
-    
-    // Add files to FormData
-    const metadata: Array<{ identifier: string; tags?: Record<string, string> }> = [];
-    
-    files.forEach(({ identifier, file, tags }) => {
-      formData.append(identifier, file);
-      if (tags) {
-        metadata.push({ identifier, tags });
-      }
-    });
-
-    // Add metadata if any files have tags
-    if (metadata.length > 0) {
-      formData.append('_metadata', JSON.stringify(metadata));
-    }
-
-    const response = await fetch(url.toString(), {
-      method: 'PUT',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to store quilt: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
-  }
-
-  /**
    * Retrieve a blob by blob ID
    */
   async retrieveBlob(blobId: string): Promise<ArrayBuffer> {
@@ -114,32 +65,6 @@ export class WalrusClient {
     
     if (!response.ok) {
       throw new Error(`Failed to retrieve blob by object ID: ${response.status} ${response.statusText}`);
-    }
-
-    return response.arrayBuffer();
-  }
-
-  /**
-   * Retrieve a blob from a quilt by patch ID
-   */
-  async retrieveQuiltPatch(patchId: string): Promise<ArrayBuffer> {
-    const response = await fetch(`${this.aggregatorUrl}/v1/blobs/by-quilt-patch-id/${patchId}`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to retrieve quilt patch: ${response.status} ${response.statusText}`);
-    }
-
-    return response.arrayBuffer();
-  }
-
-  /**
-   * Retrieve a blob from a quilt by quilt ID and identifier
-   */
-  async retrieveQuiltBlobByIdentifier(quiltId: string, identifier: string): Promise<ArrayBuffer> {
-    const response = await fetch(`${this.aggregatorUrl}/v1/blobs/by-quilt-id/${quiltId}/${identifier}`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to retrieve quilt blob: ${response.status} ${response.statusText}`);
     }
 
     return response.arrayBuffer();

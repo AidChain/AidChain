@@ -4,8 +4,6 @@ import { useState } from 'react';
 
 interface UploadResult {
   blobId?: string;
-  quiltId?: string;
-  patches?: Array<{ identifier: string; quiltPatchId: string }>;
   cost?: number;
   size?: number;
   error?: string;
@@ -29,11 +27,6 @@ export default function WalrusTestDashboard() {
   const [singleFile, setSingleFile] = useState<File | null>(null);
   const [singleUploading, setSingleUploading] = useState(false);
   const [singleResult, setSingleResult] = useState<UploadResult | null>(null);
-
-  // Multiple files upload states
-  const [multipleFiles, setMultipleFiles] = useState<FileList | null>(null);
-  const [multipleUploading, setMultipleUploading] = useState(false);
-  const [multipleResults, setMultipleResults] = useState<UploadResult | null>(null);
 
   // Fetch states - UPDATED
   const [fetchBlobId, setFetchBlobId] = useState<string>('');
@@ -81,54 +74,6 @@ export default function WalrusTestDashboard() {
       console.error(err);
     } finally {
       setSingleUploading(false);
-    }
-  };
-
-  // Multiple files upload handler
-  const handleMultipleUpload = async () => {
-    if (!multipleFiles || multipleFiles.length === 0) return;
-
-    setMultipleUploading(true);
-    setGlobalError(null);
-    setMultipleResults(null);
-
-    try {
-      const formData = new FormData();
-
-      // Add each file with a unique identifier
-      Array.from(multipleFiles).forEach((file, index) => {
-        const identifier = `file-${index}-${file.name.split('.')[0]}`;
-        formData.append(identifier, file);
-      });
-
-      formData.append('epochs', '5');
-
-      const response = await fetch('/api/walrus/quilt', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setMultipleResults({
-          quiltId: data.data.blobStoreResult.newlyCreated?.blobObject.blobId,
-          patches: data.data.storedQuiltBlobs,
-          cost: data.data.blobStoreResult.newlyCreated?.cost,
-          size: data.data.blobStoreResult.newlyCreated?.blobObject.size,
-        });
-      } else {
-        setMultipleResults({
-          error: data.error || 'Quilt upload failed, something wrong in the blob contract.',
-        });
-      }
-    } catch (err) {
-      setMultipleResults({
-        error: 'Multiple upload failed - Network error or server issue.',
-      });
-      console.error(err);
-    } finally {
-      setMultipleUploading(false);
     }
   };
 
@@ -340,42 +285,6 @@ export default function WalrusTestDashboard() {
     URL.revokeObjectURL(link.href);
   };
 
-  // UPDATED: Download all files from a quilt with better type detection
-  const handleDownloadQuilt = async () => {
-    if (!multipleResults?.patches) return;
-
-    setGlobalError(null);
-    
-    try {
-      for (const patch of multipleResults.patches) {
-        const response = await fetch(`/api/walrus/blob/${patch.quiltPatchId}`);
-        if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer();
-          const fileInfo = detectFileTypeFromHeader(arrayBuffer);
-          const blob = new Blob([arrayBuffer], { type: fileInfo.mimeType });
-          
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          
-          // Use the original identifier with detected extension
-          const filename = patch.identifier || `quilt-patch-${patch.quiltPatchId}`;
-          link.download = `${filename}${fileInfo.extension}`;
-          
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(link.href);
-          
-          // Small delay between downloads
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-    } catch (error) {
-      setGlobalError('Failed to download some files from the quilt');
-      console.error(error);
-    }
-  };
-
   // Helper function to get file extension from content type
   const getFileExtension = (contentType: string): string => {
     const extensions: Record<string, string> = {
@@ -473,84 +382,6 @@ export default function WalrusTestDashboard() {
                       </p>
                       {singleResult.size && <p><strong>Size:</strong> {formatFileSize(singleResult.size)}</p>}
                       {singleResult.cost && <p><strong>Cost:</strong> {singleResult.cost} FROST</p>}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Multiple Files Upload (Quilt)*/}
-        <div className='bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-lg shadow-md'>
-          <h2 className='text-2xl font-semibold mb-4 text-gray-900 dark:text-white'>
-            Quilt Upload Tester (Multiple Files)
-          </h2>
-          <div className='space-y-4'>
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Select Multiple Files
-              </label>
-              <input
-                type='file'
-                multiple
-                onChange={(e) => setMultipleFiles(e.target.files)}
-                className='w-full p-2 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
-              />
-            </div>
-
-            <button
-              onClick={handleMultipleUpload}
-              disabled={!multipleFiles || multipleFiles.length === 0 || multipleUploading}
-              className='w-full bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white py-2 px-4 rounded disabled:cursor-not-allowed transition-colors'
-            >
-              {multipleUploading ? 'Uploading...' : 'Upload Multiple Files'}
-            </button>
-
-            {/* Multiple Upload Result Display */}
-            {multipleResults && (
-              <div className={`mt-4 p-4 border rounded ${
-                multipleResults.error 
-                  ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-800 dark:text-red-200'
-                  : 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700 text-purple-800 dark:text-purple-200'
-              }`}>
-                {multipleResults.error ? (
-                  <div>
-                    <h3 className='font-semibold'>Quilt Upload Failed!</h3>
-                    <p className='text-sm mt-1'>{multipleResults.error}</p>
-                  </div>
-                ) : (
-                  <div>
-                    <h3 className='font-semibold'>Quilt Upload Successful!</h3>
-                    <div className='mt-2 text-sm space-y-1'>
-                      <p>
-                        <strong>Quilt ID:</strong> 
-                        <code className='bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100 px-1 rounded ml-1'>
-                          {multipleResults.quiltId}
-                        </code>
-                      </p>
-                      {multipleResults.cost && <p><strong>Cost:</strong> {multipleResults.cost} FROST</p>}
-                      {multipleResults.patches && multipleResults.patches.length > 0 && (
-                        <div>
-                          <p><strong>Files ({multipleResults.patches.length}):</strong></p>
-                          <ul className='ml-4 space-y-1'>
-                            {multipleResults.patches.map((patch, index) => (
-                              <li key={index} className='text-xs'>
-                                <strong>{patch.identifier}:</strong> 
-                                <code className='bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100 px-1 rounded ml-1'>
-                                  {patch.quiltPatchId}
-                                </code>
-                              </li>
-                            ))}
-                          </ul>
-                          <button
-                            onClick={handleDownloadQuilt}
-                            className='mt-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs transition-colors'
-                          >
-                            📥 Download All Files
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -674,7 +505,7 @@ export default function WalrusTestDashboard() {
       </div>
 
       {/* Quick Copy Section for Blob ID*/}
-      {((singleResult?.blobId && !singleResult.error) || (multipleResults?.quiltId && !multipleResults.error)) && (
+      {((singleResult?.blobId && !singleResult.error)) && (
         <div className='bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 rounded-lg'>
           <h3 className='font-semibold mb-2 text-gray-900 dark:text-white'>
             Quick Copy Blob ID for Testing:
@@ -691,20 +522,6 @@ export default function WalrusTestDashboard() {
                 </button>
                 <code className='ml-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-2 py-1 rounded text-xs'>
                   {singleResult.blobId}
-                </code>
-              </div>
-            )}
-            {multipleResults?.quiltId && !multipleResults.error && (
-              <div className="text-gray-700 dark:text-gray-300">
-                <span className='font-medium'>Quilt Blob ID (Multiple Files):</span>
-                <button
-                  onClick={() => setFetchBlobId(multipleResults.quiltId || '')}
-                  className='ml-2 text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 underline'
-                >
-                  Copy to Fetch
-                </button>
-                <code className='ml-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 px-2 py-1 rounded text-xs'>
-                  {multipleResults.quiltId}
                 </code>
               </div>
             )}

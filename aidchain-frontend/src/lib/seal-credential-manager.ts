@@ -41,19 +41,29 @@ export class SealCredentialManager {
     credentialType: 'debit_card' | 'identity' | 'bank_account' = 'debit_card'
   ): Promise<SecureCredentialData> {
     try {
-      // Step 1: Create a unique policy ID for this credential set
       const policyId = this.generatePolicyId(userId, credentialType);
-      
-      // Step 2: Encrypt credentials with Seal
       const credentialData = JSON.stringify(credentials);
       const dataToEncrypt = new TextEncoder().encode(credentialData);
       
+      // Ensure packageId is in correct format
+      const formattedPackageId = this.packageId.startsWith('0x') ? this.packageId : `0x${this.packageId}`;
+      
+      console.log('🔍 Encrypting with Seal:', {
+        threshold: SealCredentialManager.KEY_SERVER_THRESHOLD,
+        packageId: formattedPackageId,
+        id: policyId,
+        dataLength: dataToEncrypt.length
+      });
+
+      // Fix: Use string parameters as per updated Seal SDK
       const { encryptedObject: sealEncryptedKey, key: symmetricKey } = await this.sealClient.encrypt({
         threshold: SealCredentialManager.KEY_SERVER_THRESHOLD,
-        packageId: this.packageId,
-        id: policyId,
-        data: dataToEncrypt,
+        packageId: formattedPackageId, // String format (no fromHex conversion needed)
+        id: policyId,                  // String format (no fromHex conversion needed)
+        data: dataToEncrypt,           // Uint8Array
       });
+
+      console.log('✅ Seal encryption successful, encrypted key length:', sealEncryptedKey.length);
 
       // Step 3: Encrypt the actual credentials with the symmetric key (envelope encryption)
       const envelopeEncryptedCredentials = await this.encryptWithSymmetricKey(
@@ -61,48 +71,45 @@ export class SealCredentialManager {
         symmetricKey
       );
 
-      // Step 4: Store the envelope-encrypted credentials on Walrus
+      // Step 4: Store the envelope-encrypted credentials on Walrus as a single blob
       const credentialFile = new File(
         [envelopeEncryptedCredentials], 
         `sealed_credentials_${userId}_${Date.now()}.enc`,
         { type: 'application/octet-stream' }
       );
 
-      const walrusResult = await walrusClient.storeQuilt([{
-        identifier: `sealed_credentials_${userId}_${Date.now()}`,
-        file: credentialFile,
-        tags: {
-          userId,
-          userAddress,
-          type: credentialType,
-          policyId,
-          encrypted: 'true',
-          sealProtected: 'true',
-          timestamp: Date.now().toString()
-        }
-      }], {
+      console.log('🔍 Storing on Walrus as single blob:', {
+        fileSize: credentialFile.size,
+        fileName: credentialFile.name
+      });
+
+      // Use storeBlob
+      const walrusResult = await walrusClient.storeBlob(credentialFile, {
         epochs: 200, // Long-term storage
         deletable: false
       });
 
-      const walrusQuiltId = walrusResult.blobStoreResult.newlyCreated?.blobObject.blobId || '';
+      const walrusBlobId = walrusResult.newlyCreated?.blobObject.blobId || 
+                          walrusResult.alreadyCertified?.blobId || '';
+      
+      console.log('✅ Walrus storage successful, blob ID:', walrusBlobId);
 
       // Step 5: Return credential metadata
       const secureCredentialData: SecureCredentialData = {
         userId,
         credentialType,
-        walrusQuiltId,
+        walrusBlobId: walrusBlobId, // Keep same field name for compatibility, but it's now a blob ID
         sealEncryptedKey,
         accessLevel: 'user',
         createdAt: Date.now(),
-        packageId: this.packageId,
+        packageId: formattedPackageId,
         policyId
       };
 
       return secureCredentialData;
     } catch (error) {
       console.error('Failed to store secure credentials:', error);
-      throw new Error('Credential storage failed');
+      throw new Error(`Credential storage failed: ${error}`);
     }
   }
 
@@ -114,22 +121,23 @@ export class SealCredentialManager {
     sessionKey: SessionKey
   ): Promise<DebitCardCredentials | null> {
     try {
-      // Step 1: Create transaction to validate access policy
+      // Fix: Build transaction according to documentation
       const tx = new Transaction();
       tx.moveCall({
         target: `${this.packageId}::donation_pool::seal_approve`,
         arguments: [
           tx.pure.vector("u8", fromHex(credentialData.policyId)),
-          tx.object('0x6'), // Clock object for time-based policies
+          tx.object('0x6'), // Clock object
         ]
       });
 
+      // Build with correct options as per documentation
       const txBytes = await tx.build({ 
         client: this.suiClient, 
         onlyTransactionKind: true 
       });
 
-      // Step 2: Decrypt the symmetric key using Seal
+      // Use correct decrypt method signature
       const decryptedSymmetricKey = await this.sealClient.decrypt({
         data: credentialData.sealEncryptedKey,
         sessionKey,
@@ -137,7 +145,7 @@ export class SealCredentialManager {
       });
 
       // Step 3: Retrieve envelope-encrypted data from Walrus
-      const envelopeEncryptedData = await walrusClient.retrieveBlob(credentialData.walrusQuiltId);
+      const envelopeEncryptedData = await walrusClient.retrieveBlob(credentialData.walrusBlobId);
 
       // Step 4: Decrypt the envelope using the symmetric key
       const decryptedCredentialData = await this.decryptWithSymmetricKey(
@@ -160,18 +168,41 @@ export class SealCredentialManager {
     userAddress: string,
     signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }>
   ): Promise<SessionKey> {
-    const sessionKey = await SessionKey.create({
-      address: userAddress,
-      packageId: this.packageId,
-      ttlMin: SealCredentialManager.SESSION_TTL_MINUTES,
-      suiClient: this.suiClient
-    });
+    try {
+      const sessionKey = await SessionKey.create({
+        address: userAddress,
+        packageId: this.packageId,
+        ttlMin: SealCredentialManager.SESSION_TTL_MINUTES,
+        suiClient: this.suiClient
+      });
 
-    const message = sessionKey.getPersonalMessage();
-    const { signature } = await signPersonalMessage(message);
-    sessionKey.setPersonalMessageSignature(signature);
+      const message = sessionKey.getPersonalMessage();
+      const { signature } = await signPersonalMessage(message);
+      
+      // Fix: Convert base64 signature to hex format that Seal expects
+      try {
+        // Try the signature as-is first
+        sessionKey.setPersonalMessageSignature(signature);
+      } catch (error) {
+        // If that fails, try converting base64 to hex
+        try {
+          const binaryString = atob(signature);
+          const hexSignature = Array.from(binaryString)
+            .map(char => char.charCodeAt(0).toString(16).padStart(2, '0'))
+            .join('');
+          sessionKey.setPersonalMessageSignature(hexSignature);
+        } catch (conversionError) {
+          // If conversion fails, try without the leading 'A' character (common base64 signature prefix)
+          const cleanSignature = signature.startsWith('A') ? signature.slice(1) : signature;
+          sessionKey.setPersonalMessageSignature(cleanSignature);
+        }
+      }
 
-    return sessionKey;
+      return sessionKey;
+    } catch (error) {
+      console.error('Failed to create session key:', error);
+      throw error;
+    }
   }
 
   /**

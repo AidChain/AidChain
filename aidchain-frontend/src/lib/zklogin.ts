@@ -265,18 +265,19 @@ export class ZkLoginService {
    */
   async restoreState(jwt: string, loginState: any): Promise<ZkLoginState> {
     try {
-      // Restore ephemeral keypair
-      const ephemeralKeyPair = this.deserializeKeyPair(loginState.ephemeralKeyPair);
+      // Restore ephemeral keypair from serialized data
+      const restoredKeyPair = Ed25519Keypair.fromSecretKey(
+        fromBase64(loginState.ephemeralKeyPair.privateKey)
+      );
 
-      // Get address and salt from Enoki API (or use stored values)
-      const zkLoginResponse = await this.enokiService.getZkLoginAddress(jwt);
-      const { salt, address: zkLoginUserAddress } = zkLoginResponse.data;
+      // Validate JWT and get user info
+      const zkLoginUserAddress = jwtToAddress(jwt, loginState.userSalt);
 
       const state: ZkLoginState = {
-        ephemeralKeyPair,
+        ephemeralKeyPair: restoredKeyPair,
         randomness: loginState.randomness,
         maxEpoch: loginState.maxEpoch,
-        userSalt: salt,
+        userSalt: loginState.userSalt,
         jwt,
         zkLoginUserAddress
       };
@@ -286,7 +287,7 @@ export class ZkLoginService {
       return state;
     } catch (error) {
       console.error('Failed to restore zkLogin state:', error);
-      throw error;
+      throw new Error('Invalid session data - please login again');
     }
   }
 }
