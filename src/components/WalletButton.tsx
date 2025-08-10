@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useZkLogin } from '@/providers/ZkLoginProvider';
 import GradientBorderButton from './GradientBorderButton';
-import gsap from 'gsap';
 import { useRouter } from 'next/navigation';
 
 interface WalletButtonProps {
@@ -34,19 +33,16 @@ export const WalletButton = ({
     setIsAnimating(true);
     
     try {
-      // Run animation first
-      await gsap.to('.wallet-button', {
-        scale: 0.95,
-        duration: 0.1,
-        yoyo: true,
-        repeat: 1,
-      });
+      console.log('🔍 Starting OAuth flow...');
       
-      await login(); // This uses Enoki's built-in OAuth flow
-      router.push('/loading'); // Redirect to loading page after login
-
+      // ✅ Call login and let ZkLoginProvider handle navigation
+      await login();
+      
+      // ✅ Don't redirect here - let the provider handle it
+      console.log('✅ OAuth completed successfully');
+      
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('❌ Login failed:', error);
     } finally {
       setIsAnimating(false);
     }
@@ -62,7 +58,6 @@ export const WalletButton = ({
       <div className="flex items-center gap-2">
         <div className="px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 text-sm font-mono"> 
           {userAddress}
-          <span className="ml-2 text-xs">Enoki Wallet(REMOVE!)</span>
         </div>
         <GradientBorderButton
           onClick={handleDisconnect}
@@ -78,12 +73,13 @@ export const WalletButton = ({
   return (
     <GradientBorderButton
       onClick={handleConnect}
-      disabled={isAnimating || isLoading}
       className={`wallet-button ${className}`}
       size={size}
+      disabled={isAnimating || isLoading}
     >
-      {isLoading ? 'Connecting...' : 
-       variant === 'login' ? 'Log In' : 'Donate Now'}
+      {isAnimating || isLoading ? 'Connecting...' : variant === 'login' ? 'Login with Google' : 'Connect Wallet'}
     </GradientBorderButton>
   );
 };
+
+export default WalletButton;

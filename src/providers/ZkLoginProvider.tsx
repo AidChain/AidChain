@@ -35,6 +35,7 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
   
   const [isLoading, setIsLoading] = useState(false);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
+  const [hasNavigated, setHasNavigated] = useState(false);
 
   // Get the Google Enoki wallet
   const enokiWallets = wallets.filter(isEnokiWallet);
@@ -45,17 +46,38 @@ export const ZkLoginProvider = ({ children }: { children: React.ReactNode }) => 
 
   // ✅ Handle successful authentication
   useEffect(() => {
-    if (isAuthenticated && userAddress) {
+    if (isAuthenticated && userAddress && !hasNavigated) {
       const currentPath = window.location.pathname;
       
-      // If we're on the loading page, continue with faucet process
-      if (currentPath === '/loading') {
-        console.log('✅ Authentication complete on loading page');
+      console.log('✅ Authentication detected:', {
+        userAddress: userAddress.slice(0, 8) + '...',
+        currentPath,
+        hasNavigated
+      });
+
+      // ✅ Navigate to loading page if we're on home page and haven't navigated yet
+      if (currentPath === '/') {
+        console.log('🔄 Redirecting from home to loading page');
+        setHasNavigated(true);
+        router.push('/loading');
         return;
       }
       
+      // ✅ If we're already on loading page, mark as navigated
+      if (currentPath === '/loading') {
+        console.log('✅ Already on loading page, continuing...');
+        setHasNavigated(true);
+        return;
+      }
     }
-  }, [isAuthenticated, userAddress, router]);
+  }, [isAuthenticated, userAddress, hasNavigated, router]);
+
+  // ✅ Reset navigation state when user logs out
+  useEffect(() => {
+    if (!isAuthenticated && !userAddress) {
+      setHasNavigated(false);
+    }
+  }, [isAuthenticated, userAddress]);
 
   // Request faucet SUI for new users (with balance check)
   useEffect(() => {
