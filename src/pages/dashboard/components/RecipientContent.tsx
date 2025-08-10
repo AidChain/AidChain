@@ -9,7 +9,7 @@ import { ChevronDown } from 'lucide-react';
 
 export default function RecipientContent() {
   const username = "Test User"
-  const chartRef = useRef(null);
+  const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef(null);
 
   const [timeFilter, setTimeFilter] = useState('year');

@@ -30,7 +30,7 @@ interface WalrusImageCache {
 
 export default function DonorContent() {
   const username = "Test User";
-  const chartRef = useRef(null);
+  const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef(null);
   
   const [selectedRecipient, setSelectedRecipient] = useState('all');
