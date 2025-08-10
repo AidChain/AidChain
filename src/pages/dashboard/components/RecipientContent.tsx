@@ -7,10 +7,44 @@ import Modal from '@/components/Modal';
 import * as Chart from 'chart.js';
 import { ChevronDown } from 'lucide-react';
 
+// Define interfaces for better type safety
+interface TransactionItem {
+  recipient: string;
+  amount: number;
+}
+
+interface ExpenditureData {
+  labels: string[];
+  data: number[];
+  total: number;
+  period: string;
+}
+
+interface ColorGradient {
+  start: string;
+  end: string;
+  glow: string;
+}
+
+interface ChartDataset {
+  label: string;
+  data: number[];
+  backgroundColor: any[]; // Chart.js gradients
+  borderColor: string[];
+  borderWidth: number;
+  borderRadius: number;
+  borderSkipped: boolean;
+}
+
+interface ChartData {
+  labels: string[];
+  datasets: ChartDataset[];
+}
+
 export default function RecipientContent() {
   const username = "Test User"
-  const chartRef = useRef(null);
-  const chartInstanceRef = useRef(null);
+  const chartRef = useRef<HTMLCanvasElement>(null);
+  const chartInstanceRef = useRef<Chart.Chart | null>(null);
 
   const [timeFilter, setTimeFilter] = useState('year');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -32,7 +66,7 @@ export default function RecipientContent() {
       setSnackbars(prev => prev.filter(snackbar => snackbar.id !== id));
     };
 
-    const transactionDataBrief = [
+    const transactionDataBrief: TransactionItem[] = [
       {
         recipient: "Walmart",
         amount: 50
@@ -51,7 +85,7 @@ export default function RecipientContent() {
       },
     ]
 
-    const transactionData = [
+    const transactionData: TransactionItem[] = [
     {
       recipient: "Walmart",
       amount: 50
@@ -89,10 +123,10 @@ export default function RecipientContent() {
     { value: 'year', label: 'Past Year' }
   ];
 
-  const selectedOption = filterOptions.find(option => option.value === timeFilter);
+  const selectedOption = filterOptions.find(option => option.value === timeFilter)!;
 
   // Expenditure data by time period
-  const expenditureByPeriod = {
+  const expenditureByPeriod: { [key: string]: ExpenditureData } = {
     month: {
       labels: ['Food', 'Education', 'Healthcare', 'Housing', 'Transportation', 'Utilities'],
       data: [680, 750, 320, 1400, 180, 290],
@@ -122,9 +156,9 @@ export default function RecipientContent() {
   const currentData = expenditureByPeriod[timeFilter];
 
   // Create gradients and setup chart data
-  const createGradients = (ctx) => {
-    const gradients = [];
-    const colors = [
+  const createGradients = (ctx: CanvasRenderingContext2D) => {
+    const gradients: any[] = [];
+    const colors: ColorGradient[] = [
       { start: '#93C5FD80', end: '#3B82F680', glow: '#3B82F6' }, // Pale Blue
       { start: '#6EE7B780', end: '#10B98180', glow: '#10B981' }, // Pale Green
       { start: '#FCD34D80', end: '#F59E0B80', glow: '#F59E0B' }, // Pale Yellow
@@ -144,12 +178,12 @@ export default function RecipientContent() {
   };
 
   // Mock expenditure data by category
-  const expenditureData = {
+  const expenditureData: ChartData = {
     labels: currentData.labels,
     datasets: [{
       label: 'Expenditure ($)',
       data: currentData.data,
-      backgroundColor: [], // Will be set dynamically with gradients
+      backgroundColor: [] as any[], // Will be set dynamically with gradients
       borderColor: [
         '#3B82F6',
         '#10B981',
@@ -179,7 +213,7 @@ export default function RecipientContent() {
         borderColor: '#3B82F6',
         borderWidth: 1,
         callbacks: {
-          label: function(context) {
+          label: function(context: any) {
             return `$${context.parsed.y}`;
           }
         }
@@ -190,7 +224,7 @@ export default function RecipientContent() {
         beginAtZero: true,
         ticks: {
           color: '#94A3B8',
-          callback: function(value) {
+          callback: function(value: string | number) {
             return '$' + value;
           }
         },
@@ -210,7 +244,7 @@ export default function RecipientContent() {
     },
     animation: {
       duration: 1000,
-      easing: 'easeInOutQuart'
+      easing: 'easeInOutQuart' as const
     }
   };
 
@@ -229,6 +263,10 @@ export default function RecipientContent() {
       );
 
       const ctx = chartRef.current.getContext('2d');
+      if (!ctx) {
+        console.error('Failed to get canvas context');
+        return;
+      }
       
       // Create gradients
       const { gradients } = createGradients(ctx);
