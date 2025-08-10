@@ -52,3 +52,42 @@ npm install
 
 # 4. Run frontend
 npm run dev
+```
+
+### Environment Variables
+Create a `.env` file in the root directory and add the following variables:
+```env
+# Walrus Config
+NEXT_PUBLIC_WALRUS_PUBLISHER_URL=https://publisher.testnet.walrus.atalma.io
+NEXT_PUBLIC_WALRUS_AGGREGATOR_URL=https://aggregator.testnet.walrus.atalma.io
+
+# Backup Aggregator URL
+# https://agg.test.walrus.eosusa.io
+# https://aggregator.testnet.walrus.atalma.io
+# https://aggregator.testnet.walrus.mirai.cloud
+# https://aggregator.walrus-01.tududes.com
+# https://aggregator.walrus-testnet.h2o-nodes.com
+
+# Backup Publisher URL
+# https://publisher.testnet.walrus.atalma.io
+# https://publisher.walrus-01.tududes.com
+# https://publisher.walrus-testnet.h2o-nodes.com
+# https://publisher.walrus-testnet.walrus.space
+# https://publisher.walrus.banansen.dev
+
+# Sui Config
+NEXT_PUBLIC_SUI_NETWORK=testnet
+NEXT_PUBLIC_SUI_RPC_URL=https://sui-testnet-rpc.publicnode.com:443
+
+# Contracts Config
+NEXT_PUBLIC_DONATION_POOL_PACKAGE_ID=0x57285feae828fd141242e120bc7e0157793800fcb35961e98537533aa440d971
+NEXT_PUBLIC_DONATION_POOL_OBJECT_ID=0x8053fe3e61b9f7096dfa3760a330bc208d4507b3ceaddae4fb4e3dd5ee715ee5
+NEXT_PUBLIC_ADMIN_CAP_OBJECT=0x690d6a4e2c32e349568269e76f7038fb810f15a4d07f67951af3c46600e3330d
+NEXT_PUBLIC_ADMIN_ADDRESS=0x02791ca025fc4168fbe4c2f5f0eb5511e2241618c8c635d27dcdde5b37a40086
+
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=610607200024-ukraiuo5sfe3cgdqa3usikj3mcmjb4d5.apps.googleusercontent.com
+
+NEXT_PUBLIC_REDIRECT_URI=http://localhost:3000/auth/callback/google
+NEXT_PUBLIC_ENOKI_API_KEY=enoki_private_e232fb43285687d130a1b7e37e0aca85
+NEXT_PUBLIC_ENOKI_APP_ID=aidchain
+```
