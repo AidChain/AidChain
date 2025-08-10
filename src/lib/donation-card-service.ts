@@ -17,6 +17,8 @@ export interface DonationCardData {
   progress_percentage: number;
   raised_formatted: string;
   goal_formatted: string;
+  imageUrl?: string;  // Optional since it might not always be present
+  imageLoading?: boolean;
 }
 
 export class DonationCardService {
