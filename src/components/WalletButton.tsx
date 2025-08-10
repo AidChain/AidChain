@@ -43,6 +43,7 @@ export const WalletButton = ({
       });
       
       await login(); // This uses Enoki's built-in OAuth flow
+      router.push('/loading'); // Redirect to loading page after login
 
     } catch (error) {
       console.error('Login failed:', error);

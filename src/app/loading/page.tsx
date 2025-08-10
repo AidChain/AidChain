@@ -9,22 +9,41 @@ export default function LoadingPage() {
   const router = useRouter();
   const { isAuthenticated, userAddress, isFaucetLoading } = useZkLogin();
   
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(20); // Start higher since auth is already done
   const [isComplete, setIsComplete] = useState(false);
-  const [authCompleted, setAuthCompleted] = useState(false);
 
-  // ✅ Monitor authentication status changes (this handles OAuth callback)
+  // ✅ If user isn't authenticated and lands here, redirect back
   useEffect(() => {
-    if (isAuthenticated && userAddress && !authCompleted) {
-      console.log('✅ Authentication successful, user address:', userAddress);
-      setAuthCompleted(true);
-      setProgress(85);
+    if (!isAuthenticated && !userAddress) {
+      console.log('⚠️ No authentication found on loading page, redirecting home');
+      router.push('/');
+      return;
     }
-  }, [isAuthenticated, userAddress, authCompleted]);
+  }, [isAuthenticated, userAddress, router]);
+
+  // ✅ Start progress animation since we know auth is complete
+  useEffect(() => {
+    if (isAuthenticated && userAddress) {
+      console.log('✅ Authentication confirmed, starting faucet process...');
+      
+      // Animate progress while faucet is running
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 85) {
+            clearInterval(progressInterval);
+            return 85; // Stop at 85% until faucet completes
+          }
+          return prev + Math.random() * 10;
+        });
+      }, 300);
+
+      return () => clearInterval(progressInterval);
+    }
+  }, [isAuthenticated, userAddress]);
 
   // ✅ Handle faucet completion and final redirect
   useEffect(() => {
-    if (authCompleted && !isFaucetLoading) {
+    if (isAuthenticated && userAddress && !isFaucetLoading) {
       setProgress(100);
       
       setTimeout(() => {
@@ -34,36 +53,12 @@ export default function LoadingPage() {
         }, 1000);
       }, 800);
     }
-  }, [authCompleted, isFaucetLoading, router]);
+  }, [isAuthenticated, userAddress, isFaucetLoading, router]);
 
-  // ✅ Auto progress animation before auth
-  useEffect(() => {
-    if (!authCompleted) {
-      const progressInterval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 75) {
-            clearInterval(progressInterval);
-            return 75; // Stop at 75% until authentication completes
-          }
-          return prev + Math.random() * 8;
-        });
-      }, 400);
-
-      return () => clearInterval(progressInterval);
-    }
-  }, [authCompleted]);
-
-  // ✅ Handle timeout - if stuck on loading page too long
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!isAuthenticated && !authCompleted) {
-        console.log('⏰ OAuth timeout, redirecting back to home');
-        router.push('/');
-      }
-    }, 15000); // 15 second timeout
-
-    return () => clearTimeout(timeout);
-  }, [isAuthenticated, authCompleted, router]);
+  // ✅ Only render if authenticated
+  if (!isAuthenticated || !userAddress) {
+    return null; // Prevent flash while redirecting
+  }
 
   return (
     <LoadingScreen 
