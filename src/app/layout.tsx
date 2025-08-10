@@ -35,12 +35,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={figtree.className}>
-        <SuiProvider>
-          <ZkLoginProvider>
-            {children}
-          </ZkLoginProvider>
-        </SuiProvider>
-      </body>
+        <SuiProvider><ZkLoginProvider>{children}</ZkLoginProvider></SuiProvider>
+        </body>
     </html>
   );
 }

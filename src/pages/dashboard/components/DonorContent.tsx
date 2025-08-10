@@ -7,7 +7,6 @@ import * as Chart from 'chart.js';
 import { ChevronDown } from 'lucide-react';
 import GradientBorderButton from '@/components/GradientBorderButton';
 import { donationCardService, DonationCardData } from '@/lib/donation-card-service';
-import Providers from '@/providers/Providers';
 
 // Register Chart.js components
 Chart.Chart.register(
@@ -31,8 +30,8 @@ interface WalrusImageCache {
 
 export default function DonorContent() {
   const username = "Test User";
-  const chartRef = useRef<HTMLCanvasElement>(null);
-  const chartInstance = useRef<Chart.Chart | null>(null);
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
   
   const [selectedRecipient, setSelectedRecipient] = useState('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -63,7 +62,7 @@ export default function DonorContent() {
   // ✅ Enhanced donation data with dynamic mapping
   const getDonationData = () => {
     // Base donation data template
-    const baseDonationData: { [key: string]: { labels: string[]; data: number[]; color: string; } } = {
+    const baseDonationData = {
       all: {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         data: [1200, 1500, 900, 2100, 1800, 2400, 2800, 2200, 1900, 2600, 3100, 2900],
@@ -260,7 +259,7 @@ export default function DonorContent() {
         card={{
           ...card,
           // ✅ Use Walrus image if available, fallback to placeholder, or show error state
-          imageUrl: imageUrl || (imageError ? '' : `https://picsum.photos/200/200?random=${card.id}`),
+          imageUrl: imageUrl || (imageError ? null : `https://picsum.photos/200/200?random=${card.id}`),
           imageLoading: imageLoading
         }}
         onDonationSuccess={handleDonationSuccess}
@@ -287,8 +286,7 @@ export default function DonorContent() {
   // ✅ Chart effect with dynamic data
   useEffect(() => {
     if (chartRef.current) {
-      const ctx = chartRef.current.getContext('2d') as CanvasRenderingContext2D;
-      if (!ctx) return; // Early return if context is null
+      const ctx = chartRef.current.getContext('2d');
       
       // Destroy existing chart if it exists
       if (chartInstance.current) {
@@ -378,7 +376,6 @@ export default function DonorContent() {
 
   return (
     <>
-    <Providers>
       <div className="flex flex-col pl-8 md:pl-0 pt-8 pb-8 pr-8 h-full w-full gap-8 md:ml-72 md:overflow-x-scroll mb-24 md:mb-0">
         <div className="flex flex-col gap-2 flex-shrink-0">
           <h2 className="text-white text-3xl sm:text-4xl font-semibold">Welcome back, 
@@ -546,7 +543,6 @@ export default function DonorContent() {
           )}
         </ul>
       </Modal>
-      </Providers>
     </>
   );
 };

@@ -1,5 +1,3 @@
-'use client'
-
 import { LogoutOutlined, GiftOutlined, HeartOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useZkLogin } from '@/providers/ZkLoginProvider';
 import { useRouter } from 'next/navigation';

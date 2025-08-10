@@ -3,13 +3,13 @@
 import React, { useRef, useState } from "react";
 
 interface Position {
-  x: number;
+  x: numberlo;
   y: number;
 }
 
 interface SpotlightCardProps extends React.PropsWithChildren {
   className?: string;
-  spotlightColor?: `rgba(${number}, ${number}, ${number}, ${number})`;
+  spotlightCor?: `rgba(${number}, ${number}, ${number}, ${number})`;
 }
 
 const SpotlightCard: React.FC<SpotlightCardProps> = ({
