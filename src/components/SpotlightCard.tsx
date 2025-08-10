@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 
 interface Position {
-  x: numberlo;
+  x: number;
   y: number;
 }
 
