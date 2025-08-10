@@ -259,7 +259,7 @@ export default function DonorContent() {
         card={{
           ...card,
           // ✅ Use Walrus image if available, fallback to placeholder, or show error state
-          imageUrl: imageUrl || (imageError ? null : `https://picsum.photos/200/200?random=${card.id}`),
+          imageUrl: imageUrl || (imageError ? '' : `https://picsum.photos/200/200?random=${card.id}`),
           imageLoading: imageLoading
         }}
         onDonationSuccess={handleDonationSuccess}
