@@ -36,26 +36,24 @@ A Worldwide Distribution of Relief Funds to Beneficiary across the globe.
 ### Prerequisites
 - Node.js 18+
 - SUI CLI installed and configured
-- The Graph CLI
 - Git
 
 ### Steps
 ```bash
-# 1. Clone the repository
+# 1. Clone the repository.
 git clone https://github.com/AidChain/AidChain.git
 
-# 2. Navigate into the project folder
-cd aidchain-frontend
-
-# 3. Install dependencies for frontend & backend
+# 2. Install dependencies for frontend & backend.
 npm install
+
+# 3. Create an .env file at the root directory and add the environment variables.
 
 # 4. Run frontend
 npm run dev
 ```
 
 ### Environment Variables
-Create a `.env` file in the root directory and add the following variables:
+Add the following variables to the .env file:
 ```env
 # Walrus Config
 NEXT_PUBLIC_WALRUS_PUBLISHER_URL=https://publisher.testnet.walrus.atalma.io
