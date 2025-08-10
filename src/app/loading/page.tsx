@@ -13,30 +13,30 @@ export default function LoadingPage() {
   const [isComplete, setIsComplete] = useState(false);
   const [authCompleted, setAuthCompleted] = useState(false);
 
-  // Monitor authentication status changes
+  // ✅ Monitor authentication status changes (this handles OAuth callback)
   useEffect(() => {
     if (isAuthenticated && userAddress && !authCompleted) {
       console.log('✅ Authentication successful, user address:', userAddress);
       setAuthCompleted(true);
-      
-      // Set progress to 85% when authenticated
       setProgress(85);
     }
   }, [isAuthenticated, userAddress, authCompleted]);
 
-  // Handle faucet completion
+  // ✅ Handle faucet completion and final redirect
   useEffect(() => {
     if (authCompleted && !isFaucetLoading) {
-      // Complete the progress
       setProgress(100);
       
       setTimeout(() => {
         setIsComplete(true);
-      }, 1000);
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1000);
+      }, 800);
     }
-  }, [authCompleted, isFaucetLoading]);
+  }, [authCompleted, isFaucetLoading, router]);
 
-  // Auto progress animation
+  // ✅ Auto progress animation before auth
   useEffect(() => {
     if (!authCompleted) {
       const progressInterval = setInterval(() => {
@@ -53,14 +53,22 @@ export default function LoadingPage() {
     }
   }, [authCompleted]);
 
-  const handleLoadingComplete = () => {
-    router.push('/dashboard');
-  };
+  // ✅ Handle timeout - if stuck on loading page too long
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!isAuthenticated && !authCompleted) {
+        console.log('⏰ OAuth timeout, redirecting back to home');
+        router.push('/');
+      }
+    }, 15000); // 15 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [isAuthenticated, authCompleted, router]);
 
   return (
     <LoadingScreen 
       progress={progress}
-      onLoadingComplete={handleLoadingComplete}
+      onLoadingComplete={() => router.push('/dashboard')}
       isComplete={isComplete}
     />
   );

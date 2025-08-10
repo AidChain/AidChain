@@ -41,19 +41,8 @@ export const WalletButton = ({
         yoyo: true,
         repeat: 1,
       });
-
-      // ✅ Redirect to loading page first, then trigger Enoki login
-      router.push('/loading');
       
-      // Slight delay to let the redirect happen
-      setTimeout(async () => {
-        try {
-          await login(); // This uses Enoki's built-in OAuth flow
-        } catch (error) {
-          console.error('Login failed:', error);
-          router.push('/?error=login_failed');
-        }
-      }, 500);
+      await login(); // This uses Enoki's built-in OAuth flow
 
     } catch (error) {
       console.error('Login failed:', error);
