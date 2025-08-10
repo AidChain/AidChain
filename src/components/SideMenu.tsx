@@ -1,9 +1,12 @@
+'use client'
+
 import { LogoutOutlined, GiftOutlined, HeartOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useZkLogin } from '@/providers/ZkLoginProvider';
 import { useRouter } from 'next/navigation';
 import logo from '@/assets/logo.svg';
 import Image from 'next/image';
 import SideMenuItem from './SideMenuItem';
+import { ZkLoginProvider } from '@/providers/ZkLoginProvider';
 
 interface SideMenuProps {
   activeTab: string;
@@ -45,6 +48,7 @@ export default function SideMenu({
 
   return (
     <>
+    <ZkLoginProvider>
       {/* Desktop Side Menu */}
       <div className="hidden md:flex fixed w-64 bg-black/10 backdrop-blur-md border-white/20 h-screen lg:h-full flex-col shadow-xl border-r">
         {/* Logo */}
@@ -122,6 +126,7 @@ export default function SideMenu({
           </div>
         </div>
       </div>
+      </ZkLoginProvider>
     </>
   );
 };
