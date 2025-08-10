@@ -122,7 +122,7 @@ export default function RecipientContent() {
   const currentData = expenditureByPeriod[timeFilter];
 
   // Create gradients and setup chart data
-  const createGradients = (ctx) => {
+  const createGradients = (ctx: CanvasRenderingContext2D) => {
     const gradients = [];
     const colors = [
       { start: '#93C5FD80', end: '#3B82F680', glow: '#3B82F6' }, // Pale Blue
