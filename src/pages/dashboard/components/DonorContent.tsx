@@ -286,7 +286,8 @@ export default function DonorContent() {
   // ✅ Chart effect with dynamic data
   useEffect(() => {
     if (chartRef.current) {
-      const ctx = chartRef.current.getContext('2d');
+      const ctx = chartRef.current.getContext('2d') as CanvasRenderingContext2D;
+      if (!ctx) return; // Early return if context is null
       
       // Destroy existing chart if it exists
       if (chartInstance.current) {
