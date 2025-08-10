@@ -92,7 +92,7 @@ export default function RecipientContent() {
   const selectedOption = filterOptions.find(option => option.value === timeFilter);
 
   // Expenditure data by time period
-  const expenditureByPeriod = {
+  const expenditureByPeriod: { [key: string]: { labels: string[]; data: number[]; total: number; period: string; } } = {
     month: {
       labels: ['Food', 'Education', 'Healthcare', 'Housing', 'Transportation', 'Utilities'],
       data: [680, 750, 320, 1400, 180, 290],
