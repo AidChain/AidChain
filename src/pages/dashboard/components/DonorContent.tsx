@@ -62,7 +62,7 @@ export default function DonorContent() {
   // ✅ Enhanced donation data with dynamic mapping
   const getDonationData = () => {
     // Base donation data template
-    const baseDonationData = {
+    const baseDonationData: { [key: string]: { labels: string[]; data: number[]; color: string; } } = {
       all: {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         data: [1200, 1500, 900, 2100, 1800, 2400, 2800, 2200, 1900, 2600, 3100, 2900],
