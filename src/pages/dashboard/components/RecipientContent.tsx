@@ -6,6 +6,7 @@ import Snackbar from '@/components/Snackbar';
 import Modal from '@/components/Modal';
 import * as Chart from 'chart.js';
 import { ChevronDown } from 'lucide-react';
+import Providers from '@/providers/Providers';
 
 // Define interfaces for better type safety
 interface TransactionItem {
@@ -296,6 +297,7 @@ export default function RecipientContent() {
 
   return (
     <>
+    <Providers>
       <div className="flex flex-col pt-8 pb-8 pr-8 pl-8 md:pl-0 h-full w-full gap-8 md:ml-72 mb-24 md:mb-0 md:overflow-x-scroll">
         <div className="flex flex-col gap-2 flex-shrink-0">
           <h2 className="text-white text-3xl sm:text-4xl font-semibold">Welcome back, 
@@ -455,6 +457,7 @@ export default function RecipientContent() {
         }
       </ul>
     </Modal>
+    </Providers>
   </>
   );
 };

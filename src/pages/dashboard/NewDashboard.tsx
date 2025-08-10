@@ -4,9 +4,7 @@ import React, { useState } from 'react';
 import SideMenu from '@/components/SideMenu';
 import DonorContent from './components/DonorContent';
 import RecipientContent from './components/RecipientContent';
-import { ZkLoginProvider } from '@/providers/ZkLoginProvider';
-import { WalletProvider } from '@mysten/dapp-kit';
-import { SuiClientProvider } from '@mysten/dapp-kit';
+import Providers from '@/providers/Providers';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 interface ProvidersProps {
@@ -31,23 +29,17 @@ export default function NewDashboard() {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SuiClientProvider>
-        <WalletProvider>
-          <ZkLoginProvider>
-            <div className="h-auto lg:h-screen w-screen flex gap-8 bg-gradient-to-t from-black to-blue-950 text-white relative overflow-hidden">
-              <SideMenu 
-                activeTab={activeTab} 
-                onTabChange={handleTabChange} 
-              />
-              {activeTab == 'donor' ? 
-                <DonorContent /> :
-                <RecipientContent />
-              }
-            </div>
-          </ZkLoginProvider>
-        </WalletProvider>
-      </SuiClientProvider>
-    </QueryClientProvider>
+    <Providers>
+      <div className="h-auto lg:h-screen w-screen flex gap-8 bg-gradient-to-t from-black to-blue-950 text-white relative overflow-hidden">
+        <SideMenu 
+          activeTab={activeTab} 
+          onTabChange={handleTabChange} 
+        />
+        {activeTab == 'donor' ? 
+          <DonorContent /> :
+          <RecipientContent />
+        }
+      </div>
+    </Providers>
   );
 }

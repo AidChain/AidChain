@@ -7,6 +7,7 @@ import * as Chart from 'chart.js';
 import { ChevronDown } from 'lucide-react';
 import GradientBorderButton from '@/components/GradientBorderButton';
 import { donationCardService, DonationCardData } from '@/lib/donation-card-service';
+import Providers from '@/providers/Providers';
 
 // Register Chart.js components
 Chart.Chart.register(
@@ -377,6 +378,7 @@ export default function DonorContent() {
 
   return (
     <>
+    <Providers>
       <div className="flex flex-col pl-8 md:pl-0 pt-8 pb-8 pr-8 h-full w-full gap-8 md:ml-72 md:overflow-x-scroll mb-24 md:mb-0">
         <div className="flex flex-col gap-2 flex-shrink-0">
           <h2 className="text-white text-3xl sm:text-4xl font-semibold">Welcome back, 
@@ -544,6 +546,7 @@ export default function DonorContent() {
           )}
         </ul>
       </Modal>
+      </Providers>
     </>
   );
 };
